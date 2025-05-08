@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache 2
 pragma solidity ^0.8.0;
-import {VaultGetters} from "../src/contracts/VaultGetters.sol";
-import {Vault} from "../src/contracts/Vault.sol";
+import {VaultGetters} from "../src/VaultGetters.sol";
+import {Vault} from "../src/Vault.sol";
 import "forge-std/Script.sol";
 import "forge-std/console.sol";
 
