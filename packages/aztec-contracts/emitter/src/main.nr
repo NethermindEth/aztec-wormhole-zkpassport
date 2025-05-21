@@ -26,7 +26,7 @@ pub contract ZKPassportCredentialEmitter {
         pub pub_input_d: [Field; 2],
     }
 
-    #[public]
+    #[private]
     fn verify_ZKP_2_public_inputs(
         verification_key: [Field;128], 
         proof: [Field;456], 
@@ -42,7 +42,7 @@ pub contract ZKPassportCredentialEmitter {
         );
     }
 
-    #[public]
+    #[private]
     fn verify_ZKP_5_public_inputs(
         verification_key: [Field;128], 
         proof: [Field;456], 
@@ -58,7 +58,7 @@ pub contract ZKPassportCredentialEmitter {
         );
     }
 
-    #[public]
+    #[private]
     fn verify_ZKP_10_public_inputs(
         verification_key: [Field;128], 
         proof: [Field;456], 
@@ -74,12 +74,7 @@ pub contract ZKPassportCredentialEmitter {
         );
     }
 
-    #[public]
-    fn placeholderZKPVerifier() -> bool {
-        true
-    }
-
-    #[public]
+    #[private]
     fn prepare_message(
         arb_address: [u8;20], // arbitrum address is 160 bits (20 bytes) so it should be 0x000...ADDRESS
         vault_address: [u8;20], // vault address on arbitrurm (same as `arb_address`)
@@ -121,7 +116,7 @@ pub contract ZKPassportCredentialEmitter {
         [payload1,payload2,payload3,payload4,payload5,payload6,payload7,payload8]
     }
 
-    #[public] // QUESTION FOR OSSIE
+    #[private]
     fn verify_and_publish(
         proofs: Proofs,
         pub_key_x: [u8;32], pub_key_y: [u8;32], signature: [u8;64], 
