@@ -141,7 +141,7 @@ pub contract ZKPassportCredentialEmitter {
             proofs.vkey_a,
             proofs.proof_a,
             proofs.pub_input_a,
-            0 // TODO: find what the key hash is of each
+            0 
         );
 
         // proof b,c have 5 public inputs
