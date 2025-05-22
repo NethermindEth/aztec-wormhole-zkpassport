@@ -82,4 +82,13 @@ contract VaultGetters is VaultState {
     function finality() public view returns (uint8) {
         return _state.provider.finality;
     }
+
+    /**
+     * @dev Gets the stored message for a given Arbitrum public key
+     * @param arbitrumAddress The Arbitrum public key address
+     * @return bytes The stored message
+     */
+    function getArbitrumMessage(address arbitrumAddress) public view returns (bytes memory) {
+        return _state.arbitrumMessages[arbitrumAddress];
+    }
 }
