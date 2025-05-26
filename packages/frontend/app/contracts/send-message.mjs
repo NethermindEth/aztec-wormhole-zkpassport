@@ -10,19 +10,29 @@ const WormholeJsonContractArtifact = loadContractArtifact(WormholeJson);
 
 const { PXE_URL = 'http://localhost:8090' } = process.env;
 
-// Get __dirname equivalent in ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
 // Get verification data from environment variable if present
 let verificationData = null;
 const hasMeaningfulData = process.env.HAS_MEANINGFUL_DATA === 'true';
+
+try {
+  if (process.env.VERIFICATION_DATA) {
+    verificationData = JSON.parse(Buffer.from(process.env.VERIFICATION_DATA, 'base64').toString());
+  } else {
+    console.log("No verification data provided");
+  }
+} catch (error) {
+  console.error("Error parsing verification data:", error);
+}
 
 async function main() {
   const pxe = createPXEClient(PXE_URL);
   await waitForPXE(pxe);
 
-  // Read the deployed contract address from addresses.json in the same directory
+  // Get __dirname equivalent in ES modules
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+
+  // Read the deployed contract address from addresses.json
   let addresses;
   try {
     const addressesPath = join(__dirname, 'addresses.json');
@@ -58,9 +68,7 @@ async function main() {
     message = JSON.stringify(messageData);
     console.log(`Sending verification message: ${message}`);
   } else {
-    // Fall back to Hello World message
-    message = "Hello World";
-    console.log(`Sending simple message: ${message}`);
+    console.error(`Failed to retrieve message`);
   }
 
   // Convert message to bytes

@@ -10,6 +10,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@aztec/accounts": "^0.85.0",
+    "@aztec/aztec.js": "^0.85.0",
     "@zkpassport/sdk": "^0.4.0",
     "next": "15.1.0",
     "react": "19.0.0",

@@ -1,55 +1,54 @@
-"use client";
-import { useEffect, useRef, useState } from "react";
-import { ZKPassport, ProofResult, EU_COUNTRIES } from "@zkpassport/sdk";
-import QRCode from "react-qr-code";
+"use client"
+import { useEffect, useRef, useState } from "react"
+import { ZKPassport, type ProofResult, EU_COUNTRIES } from "@zkpassport/sdk"
+import QRCode from "react-qr-code"
 
-// Add button to call API that runs your script
 export default function Home() {
-  const [message, setMessage] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [isEUCitizen, setIsEUCitizen] = useState<boolean | undefined>(undefined);
-  const [isOver18, setIsOver18] = useState<boolean | undefined>(undefined);
-  const [queryUrl, setQueryUrl] = useState("");
-  const [uniqueIdentifier, setUniqueIdentifier] = useState("");
-  const [verified, setVerified] = useState<boolean | undefined>(undefined);
-  const [requestInProgress, setRequestInProgress] = useState(false);
-  const [txHash, setTxHash] = useState("");
-  const [txStatus, setTxStatus] = useState("");
-  const [arbitrumMessage, setArbitrumMessage] = useState<string | null>(null);
-  const [isPolling, setIsPolling] = useState(false);
-  const zkPassportRef = useRef<ZKPassport | null>(null);
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [message, setMessage] = useState("")
+  const [firstName, setFirstName] = useState("")
+  const [isEUCitizen, setIsEUCitizen] = useState<boolean | undefined>(undefined)
+  const [isOver18, setIsOver18] = useState<boolean | undefined>(undefined)
+  const [queryUrl, setQueryUrl] = useState("")
+  const [uniqueIdentifier, setUniqueIdentifier] = useState("")
+  const [verified, setVerified] = useState<boolean | undefined>(undefined)
+  const [requestInProgress, setRequestInProgress] = useState(false)
+  const [txHash, setTxHash] = useState("")
+  const [txStatus, setTxStatus] = useState("")
+  const [arbitrumMessage, setArbitrumMessage] = useState<string | null>(null)
+  const [isPolling, setIsPolling] = useState(false)
+  const zkPassportRef = useRef<ZKPassport | null>(null)
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     if (!zkPassportRef.current) {
-      zkPassportRef.current = new ZKPassport(window.location.hostname);
+      zkPassportRef.current = new ZKPassport(window.location.hostname)
     }
-  }, []);
+  }, [])
 
   // Clean up polling interval on component unmount
   useEffect(() => {
     return () => {
       if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
+        clearInterval(pollingIntervalRef.current)
       }
-    };
-  }, []);
+    }
+  }, [])
 
   const createRequest = async () => {
     if (!zkPassportRef.current) {
-      return;
+      return
     }
-    setFirstName("");
-    setIsEUCitizen(undefined);
-    setMessage("");
-    setQueryUrl("");
-    setIsOver18(undefined);
-    setUniqueIdentifier("");
-    setVerified(undefined);
-    setTxHash("");
-    setTxStatus("");
-    setArbitrumMessage(null);
-    setIsPolling(false);
+    setFirstName("")
+    setIsEUCitizen(undefined)
+    setMessage("")
+    setQueryUrl("")
+    setIsOver18(undefined)
+    setUniqueIdentifier("")
+    setVerified(undefined)
+    setTxHash("")
+    setTxStatus("")
+    setArbitrumMessage(null)
+    setIsPolling(false)
 
     const queryBuilder = await zkPassportRef.current.request({
       name: "ZKPassport",
@@ -58,60 +57,52 @@ export default function Home() {
       scope: "eu-adult",
       mode: "fast",
       devMode: true,
-    });
+    })
 
-    const {
-      url,
-      onRequestReceived,
-      onGeneratingProof,
-      onProofGenerated,
-      onResult,
-      onReject,
-      onError,
-    } = queryBuilder
+    const { url, onRequestReceived, onGeneratingProof, onProofGenerated, onResult, onReject, onError } = queryBuilder
       .in("issuing_country", [...EU_COUNTRIES, "Zero Knowledge Republic"])
       .disclose("firstname")
       .gte("age", 18)
       .disclose("document_type")
-      .done();
+      .done()
 
-    setQueryUrl(url);
-    console.log(url);
+    setQueryUrl(url)
+    console.log(url)
 
-    setRequestInProgress(true);
+    setRequestInProgress(true)
 
     onRequestReceived(() => {
-      console.log("QR code scanned");
-      setMessage("Request received");
-    });
+      console.log("QR code scanned")
+      setMessage("Request received")
+    })
 
     onGeneratingProof(() => {
-      console.log("Generating proof");
-      setMessage("Generating proof...");
-    });
+      console.log("Generating proof")
+      setMessage("Generating proof...")
+    })
 
-    const proofs: ProofResult[] = [];
+    const proofs: ProofResult[] = []
 
     onProofGenerated((result: ProofResult) => {
-      console.log("Proof result", result);
-      proofs.push(result);
-      setMessage(`Proofs received`);
-      setRequestInProgress(false);
-    });
+      console.log("Proof result", result)
+      proofs.push(result)
+      setMessage(`Proofs received`)
+      setRequestInProgress(false)
+    })
 
     onResult(async ({ result, uniqueIdentifier, verified, queryResultErrors }) => {
-      console.log("Result of the query", result);
-      console.log("Query result errors", queryResultErrors);
-      
+      console.log("Result of the query", result)
+      console.log("Query result errors", queryResultErrors)
+
       // Store the verification results in state
-      setFirstName(result?.firstname?.disclose?.result);
-      setIsEUCitizen(result?.issuing_country?.in?.result);
-      setIsOver18(result?.age?.gte?.result);
-      setMessage("Result received");
-      setUniqueIdentifier(uniqueIdentifier || "");
-      setVerified(verified);
-      setRequestInProgress(false);
-      
+      setFirstName(result?.firstname?.disclose?.result)
+      setIsEUCitizen(result?.issuing_country?.in?.result)
+      setIsOver18(result?.age?.gte?.result)
+      setMessage("Result received")
+      setUniqueIdentifier(uniqueIdentifier || "")
+      setVerified(verified)
+      setRequestInProgress(false)
+
       // If age verification is successful, send the message with the RESULT data directly
       if (result?.age?.gte?.result === true) {
         // Create the verification data directly from the result
@@ -121,69 +112,69 @@ export default function Home() {
           isEUCitizen: result.issuing_country?.in?.result === true,
           documentType: result.document_type?.disclose?.result || "",
           uniqueIdentifier: uniqueIdentifier || "",
-          verified: verified === true
-        };
-        
-        console.log("Sending verification data:", verificationData);
-        await sendMessageWithData(verificationData);
+          verified: verified === true,
+        }
+
+        console.log("Sending verification data:", verificationData)
+        await sendMessageWithData(verificationData)
       }
-    });
+    })
 
     onReject(() => {
-      console.log("User rejected");
-      setMessage("User rejected the request");
-      setRequestInProgress(false);
-    });
+      console.log("User rejected")
+      setMessage("User rejected the request")
+      setRequestInProgress(false)
+    })
 
     onError((error: unknown) => {
-      console.error("Error", error);
-      setMessage("An error occurred");
-      setRequestInProgress(false);
-    });
-  };
+      console.error("Error", error)
+      setMessage("An error occurred")
+      setRequestInProgress(false)
+    })
+  }
 
   // Function to send message with provided verification data
   const sendMessageWithData = async (verificationData: any) => {
-    setTxStatus("Sending message with verification data...");
-    setTxHash("");
-    
+    setTxStatus("Sending message with verification data...")
+    setTxHash("")
+
     try {
       // Call the API route with the provided verification data
-      const response = await fetch('/api/send-message', {
-        method: 'POST',
+      const response = await fetch("/api/send-message", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(verificationData)
-      });
-      
+        body: JSON.stringify(verificationData),
+      })
+
       if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
+        throw new Error(`Error: ${response.status}`)
       }
-      
-      const data = await response.json();
-      console.log("API response:", data);
-      
+
+      const data = await response.json()
+      console.log("API response:", data)
+
       if (data.success) {
-        setTxStatus("Message sent successfully!");
-        setTxHash(data.txHash);
-        
+        setTxStatus("Message sent successfully!")
+        setTxHash(data.txHash)
+
         // Start polling after successful message sending
-        startPollingArbitrumMessage();
+        startPollingArbitrumMessage()
       } else {
-        setTxStatus(`Error: ${data.error}`);
+        setTxStatus(`Error: ${data.error}`)
       }
     } catch (error) {
-      console.error("Error sending message:", error);
-      setTxStatus(`Error: ${error instanceof Error ? error.message : "Unknown error"}`);
+      console.error("Error sending message:", error)
+      setTxStatus(`Error: ${error instanceof Error ? error.message : "Unknown error"}`)
     }
-  };
+  }
 
   // Legacy function to maintain compatibility with existing code
   const sendMessage = async () => {
-    setTxStatus("Sending message...");
-    setTxHash("");
-    
+    setTxStatus("Sending message...")
+    setTxHash("")
+
     try {
       // Collect verification data from state
       const verificationData = {
@@ -192,221 +183,352 @@ export default function Home() {
         isEUCitizen: isEUCitizen === true,
         documentType: "", // We don't have this in state
         uniqueIdentifier: uniqueIdentifier || "",
-        verified: verified === true
-      };
-      
-      console.log("Sending verification data from state:", verificationData);
-      
-      // Call the API route with verification data
-      const response = await fetch('/api/send-message', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(verificationData)
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
+        verified: verified === true,
       }
-      
-      const data = await response.json();
-      console.log(data);
-      
+
+      console.log("Sending verification data from state:", verificationData)
+
+      // Call the API route with verification data
+      const response = await fetch("/api/send-message", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(verificationData),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`)
+      }
+
+      const data = await response.json()
+      console.log(data)
+
       if (data.success) {
-        setTxStatus("Message sent successfully!");
-        setTxHash(data.txHash);
-        
+        setTxStatus("Message sent successfully!")
+        setTxHash(data.txHash)
+
         // Start polling after successful message sending
-        startPollingArbitrumMessage();
+        startPollingArbitrumMessage()
       } else {
-        setTxStatus(`Error: ${data.error}`);
+        setTxStatus(`Error: ${data.error}`)
       }
     } catch (error) {
-      console.error("Error sending message:", error);
-      setTxStatus(`Error: ${error instanceof Error ? error.message : "Unknown error"}`);
+      console.error("Error sending message:", error)
+      setTxStatus(`Error: ${error instanceof Error ? error.message : "Unknown error"}`)
     }
-  };
+  }
 
   // Function to start polling for Arbitrum message
   const startPollingArbitrumMessage = () => {
     // Stop any existing polling
     if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
+      clearInterval(pollingIntervalRef.current)
     }
-    
-    setIsPolling(true);
-    setTxStatus(prevStatus => `${prevStatus} - Polling for Arbitrum message...`);
-    
+
+    setIsPolling(true)
+    setTxStatus((prevStatus) => `${prevStatus} - Polling for Arbitrum message...`)
+
     // Get the address to check
     // If uniqueIdentifier is an address, use it; otherwise use a default
-    let addressToCheck = uniqueIdentifier;
-    
+    let addressToCheck = uniqueIdentifier
+
     // If the uniqueIdentifier is not a valid Ethereum address, use default
     if (!addressToCheck || !addressToCheck.match(/^(0x)?[0-9a-fA-F]{40}$/)) {
-      addressToCheck = process.env.NEXT_PUBLIC_DEFAULT_ADDRESS || "0x94dFeceb91678ec912ef8f14c72721c102ed2Df7";
+      addressToCheck = process.env.NEXT_PUBLIC_DEFAULT_ADDRESS || "0xb4fFe5983B0B748124577Af4d16953bd096b6897"
     }
-    
+
     // Ensure it has 0x prefix
-    if (!addressToCheck.startsWith('0x')) {
-      addressToCheck = `0x${addressToCheck}`;
+    if (!addressToCheck.startsWith("0x")) {
+      addressToCheck = `0x${addressToCheck}`
     }
-    
-    console.log(`Polling for Arbitrum message at address: ${addressToCheck}`);
-    
+
+    console.log(`Polling for Arbitrum message at address: ${addressToCheck}`)
+
     // Start polling
-    pollingIntervalRef.current = setInterval(async () => {
-      try {
-        const response = await fetch('/api/get-arbitrum-message', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ address: addressToCheck })
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `HTTP error ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log("Polling response:", data);
-        
-        if (data.success && (data.decodedMessage || data.message) && data.message !== "0x") {
-          // We found a non-empty message, prioritize the decoded message if available
-          setArbitrumMessage(data.decodedMessage || data.message);
-          setTxStatus("Arbitrum message received!");
-          setIsPolling(false);
-          
-          // Stop polling
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
+    pollingIntervalRef.current = setInterval(
+      async () => {
+        try {
+          const response = await fetch("/api/get-arbitrum-message", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ address: addressToCheck }),
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.error || `HTTP error ${response.status}`)
           }
+
+          const data = await response.json()
+          console.log("Polling response:", data)
+
+          if (data.success && (data.decodedMessage || data.message) && data.message !== "0x") {
+            // We found a non-empty message, prioritize the decoded message if available
+            setArbitrumMessage(data.decodedMessage || data.message)
+            setTxStatus("Arbitrum message received!")
+            setIsPolling(false)
+
+            // Stop polling
+            if (pollingIntervalRef.current) {
+              clearInterval(pollingIntervalRef.current)
+              pollingIntervalRef.current = null
+            }
+          }
+        } catch (error) {
+          console.error("Error polling Arbitrum message:", error)
+          setTxStatus(`Error polling: ${error instanceof Error ? error.message : "Unknown error"}`)
+
+          // Stop polling on error to prevent continuous error messages
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current)
+            pollingIntervalRef.current = null
+          }
+          setIsPolling(false)
         }
-      } catch (error) {
-        console.error("Error polling Arbitrum message:", error);
-        setTxStatus(`Error polling: ${error instanceof Error ? error.message : "Unknown error"}`);
-        
-        // Stop polling on error to prevent continuous error messages
-        if (pollingIntervalRef.current) {
-          clearInterval(pollingIntervalRef.current);
-          pollingIntervalRef.current = null;
-        }
-        setIsPolling(false);
-      }
-    }, parseInt(process.env.NEXT_PUBLIC_POLLING_INTERVAL || "5000")); // Poll using configured interval or default to 5 seconds
-  };
+      },
+      Number.parseInt(process.env.NEXT_PUBLIC_POLLING_INTERVAL || "5000"),
+    ) // Poll using configured interval or default to 5 seconds
+  }
 
   // Function to manually stop polling
   const stopPolling = () => {
     if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
+      clearInterval(pollingIntervalRef.current)
+      pollingIntervalRef.current = null
     }
-    setIsPolling(false);
-    setTxStatus(prevStatus => `${prevStatus} - Polling stopped.`);
-  };
+    setIsPolling(false)
+    setTxStatus((prevStatus) => `${prevStatus} - Polling stopped.`)
+  }
 
   // Format the arbitrum message for display
   const formatMessage = (message: string | null): string => {
-    if (!message) return "";
-    
+    if (!message) return ""
+
     // If it's already a string, return it
-    if (typeof message === 'string') {
+    if (typeof message === "string") {
       // Check if it looks like a hex string that needs decoding
-      if (message.startsWith('0x')) {
-        return "Message verified from blockchain";
+      if (message.startsWith("0x")) {
+        return "Message verified from blockchain"
       }
-      return message;
+      return message
     }
-    
+
     // If it's an object with decodedMessage, return that
-    if (typeof message === 'object' && message !== null) {
-      return (message as any).decodedMessage || "Message verified from blockchain";
+    if (typeof message === "object" && message !== null) {
+      return (message as any).decodedMessage || "Message verified from blockchain"
     }
-    
+
     // Fallback
-    return JSON.stringify(message);
-  };
+    return JSON.stringify(message)
+  }
 
   return (
-    <main className="w-full h-full flex flex-col items-center p-10">
-      {queryUrl && <QRCode className="mb-4" value={queryUrl} />}
-      {message && <p>{message}</p>}
-      {firstName && (
-        <p className="mt-2">
-          <b>Firstname:</b> {firstName}
-        </p>
-      )}
-      {typeof isEUCitizen === "boolean" && (
-        <p className="mt-2">
-          <b>Is EU citizen:</b> {isEUCitizen ? "Yes" : "No"}
-        </p>
-      )}
-      {typeof isOver18 === "boolean" && (
-        <p className="mt-2">
-          <b>Is over 18:</b> {isOver18 ? "Yes" : "No"}
-        </p>
-      )}
-      {uniqueIdentifier && (
-        <p className="mt-2">
-          <b>Unique identifier:</b>
-        </p>
-      )}
-      {uniqueIdentifier && <p>{uniqueIdentifier}</p>}
-      {verified !== undefined && (
-        <p className="mt-2">
-          <b>Verified:</b> {verified ? "Yes" : "No"}
-        </p>
-      )}
-      
-      {/* Transaction status and hash display */}
-      {txStatus && (
-        <p className="mt-4 font-bold">
-          {txStatus}
-        </p>
-      )}
-      {txHash && (
-        <p className="mt-2">
-          <b>Transaction Hash:</b> {txHash}
-        </p>
-      )}
-      
-      {/* Arbitrum Message Display */}
-      {arbitrumMessage && (
-        <div className="mt-4 p-4 bg-gray-100 rounded-lg w-full max-w-2xl">
-          <p className="font-bold text-lg mb-2">Cross-Chain Message Verification:</p>
-          <div className="bg-white p-4 rounded-md shadow-sm">
-            <p className="text-lg font-medium text-green-600">{formatMessage(arbitrumMessage)}</p>
-          </div>
-          <p className="text-sm text-gray-500 mt-2">
-            This message was securely transmitted across blockchains using Wormhole protocol
+    <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-100 p-6">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-10">
+          <h1 className="text-4xl font-bold text-gray-800 mb-4">🛡️ ZKPassport Verification</h1>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            Secure identity verification using zero-knowledge proofs and cross-chain messaging
           </p>
         </div>
-      )}
-      
-      <div className="flex flex-row gap-4 mt-4">
-        {!requestInProgress && (
-          <button
-            className="p-4 bg-gray-500 rounded-lg text-white font-medium"
-            onClick={createRequest}
-          >
-            Generate new request
-          </button>
-        )}
-        
-        {/* Polling Control Button */}
-        {txHash && (
-          <button
-            className={`p-4 rounded-lg text-white font-medium ${isPolling ? 'bg-red-500' : 'bg-blue-500'}`}
-            onClick={isPolling ? stopPolling : startPollingArbitrumMessage}
-          >
-            {isPolling ? 'Stop Polling' : 'Start Polling'}
-          </button>
-        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Left Column - QR Code and Controls */}
+          <div className="space-y-6">
+            {/* QR Code Section */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">🔄 Verification Request</h2>
+
+              {queryUrl ? (
+                <div className="text-center">
+                  <div className="bg-gray-50 p-4 rounded-lg inline-block border-2 border-dashed border-gray-300">
+                    <QRCode value={queryUrl} size={180} />
+                  </div>
+                  <p className="text-sm text-gray-500 mt-3">Scan this QR code with your ZKPassport app</p>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="w-40 h-40 mx-auto bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
+                    <div className="text-center">
+                      <div className="text-3xl mb-2">📱</div>
+                      <p className="text-gray-500 text-sm">Generate request</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Status Message */}
+              {message && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center">
+                    <span className="text-blue-600 mr-2">
+                      {requestInProgress ? "⏳" : verified === true ? "✅" : verified === false ? "❌" : "⏱️"}
+                    </span>
+                    <span className="text-blue-800 font-medium">{message}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Button */}
+              <div className="mt-4">
+                <button
+                  className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={createRequest}
+                  disabled={requestInProgress}
+                >
+                  {requestInProgress ? "🔄 Processing..." : "🛡️ Generate New Request"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column - Results */}
+          <div className="space-y-6">
+            {/* Verification Results */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">✅ Verification Results</h2>
+
+              <div className="space-y-3">
+                {/* First Name */}
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center">
+                    <span className="text-lg mr-2">👤</span>
+                    <span className="font-medium text-gray-700">First Name</span>
+                  </div>
+                  <span className="text-gray-900 font-semibold">{firstName || "Not verified"}</span>
+                </div>
+
+                {/* EU Citizenship */}
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center">
+                    <span className="text-lg mr-2">🌍</span>
+                    <span className="font-medium text-gray-700">EU Citizen</span>
+                  </div>
+                  <div className="flex items-center">
+                    {typeof isEUCitizen === "boolean" ? (
+                      <>
+                        <span className="mr-1">{isEUCitizen ? "✅" : "❌"}</span>
+                        <span className={`font-semibold ${isEUCitizen ? "text-green-600" : "text-red-600"}`}>
+                          {isEUCitizen ? "Yes" : "No"}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-gray-500">Not verified</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Age Verification */}
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center">
+                    <span className="text-lg mr-2">📅</span>
+                    <span className="font-medium text-gray-700">Over 18</span>
+                  </div>
+                  <div className="flex items-center">
+                    {typeof isOver18 === "boolean" ? (
+                      <>
+                        <span className="mr-1">{isOver18 ? "✅" : "❌"}</span>
+                        <span className={`font-semibold ${isOver18 ? "text-green-600" : "text-red-600"}`}>
+                          {isOver18 ? "Yes" : "No"}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-gray-500">Not verified</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Overall Verification Status */}
+                {verified !== undefined && (
+                  <div
+                    className={`p-3 rounded-lg border-2 ${verified ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}
+                  >
+                    <div className="flex items-center">
+                      <span className="text-xl mr-2">{verified ? "✅" : "❌"}</span>
+                      <div>
+                        <p className={`font-semibold ${verified ? "text-green-800" : "text-red-800"}`}>
+                          {verified ? "Verification Successful" : "Verification Failed"}
+                        </p>
+                        <p className={`text-sm ${verified ? "text-green-600" : "text-red-600"}`}>
+                          {verified ? "All checks passed" : "One or more checks failed"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Unique Identifier */}
+              {uniqueIdentifier && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start">
+                    <span className="text-lg mr-2">#️⃣</span>
+                    <div className="flex-1">
+                      <p className="font-medium text-blue-800 mb-1">Unique Identifier</p>
+                      <p className="text-xs text-blue-600 font-mono break-all">{uniqueIdentifier}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Transaction Status */}
+            {(txStatus || txHash) && (
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">🔗 Transaction Status</h3>
+
+                {txStatus && (
+                  <div className="mb-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                    <div className="flex items-center">
+                      {isPolling && <span className="mr-2">🔄</span>}
+                      <span className="text-purple-800 font-medium text-sm">{txStatus}</span>
+                    </div>
+                  </div>
+                )}
+
+                {txHash && (
+                  <div className="p-3 bg-gray-50 rounded-lg mb-3">
+                    <p className="font-medium text-gray-700 mb-1">Transaction Hash</p>
+                    <p className="text-xs text-gray-600 font-mono break-all">{txHash}</p>
+                  </div>
+                )}
+
+                {/* Polling Control Button */}
+                {txHash && (
+                  <button
+                    className={`w-full font-semibold py-2 px-4 rounded-lg transition-all duration-200 ${
+                      isPolling
+                        ? "bg-red-500 hover:bg-red-600 text-white"
+                        : "bg-green-500 hover:bg-green-600 text-white"
+                    }`}
+                    onClick={isPolling ? stopPolling : startPollingArbitrumMessage}
+                  >
+                    {isPolling ? "⏹️ Stop Polling" : "▶️ Start Polling"}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Cross-Chain Message */}
+            {arbitrumMessage && (
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl shadow-lg p-6 border border-green-200">
+                <h3 className="text-lg font-semibold text-green-900 mb-3">🌉 Cross-Chain Verification Complete</h3>
+
+                <div className="bg-white p-4 rounded-lg shadow-sm border border-green-100">
+                  <p className="text-base font-medium text-green-700 mb-1">{formatMessage(arbitrumMessage)}</p>
+                  <p className="text-sm text-green-600">
+                    ✅ Message successfully transmitted across blockchains using Wormhole protocol
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-    </main>
-  );
+    </div>
+  )
 }
