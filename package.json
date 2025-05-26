@@ -12,5 +12,10 @@
   "private": true,
   "workspaces": [
     "packages/*"
-  ]
+  ],
+  "dependencies": {
+    "@aztec/accounts": "^0.87.2",
+    "ethers": "^6.14.1",
+    "@aztec/noir-contracts.js": "^0.87.2"
+  }
 }

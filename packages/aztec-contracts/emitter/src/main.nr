@@ -2,7 +2,7 @@ use dep::aztec::macros::aztec;
 
 #[aztec]
 pub contract ZKPassportCredentialEmitter {
-    use dep::aztec::{macros::functions::public, prelude::AztecAddress, protocol_types::traits::{Deserialize, Serialize}};
+    use dep::aztec::{macros::functions::{public,private}, prelude::AztecAddress, protocol_types::traits::{Deserialize, Serialize}};
     use dep::std;
     use dep::keccak256::keccak256;
     use dep::wormhole::Wormhole;
@@ -26,7 +26,7 @@ pub contract ZKPassportCredentialEmitter {
         pub pub_input_d: [Field; 2],
     }
 
-    #[private]
+    #[public]
     fn verify_ZKP_2_public_inputs(
         verification_key: [Field;128], 
         proof: [Field;456], 
@@ -42,7 +42,7 @@ pub contract ZKPassportCredentialEmitter {
         );
     }
 
-    #[private]
+    #[public]
     fn verify_ZKP_5_public_inputs(
         verification_key: [Field;128], 
         proof: [Field;456], 
@@ -58,7 +58,7 @@ pub contract ZKPassportCredentialEmitter {
         );
     }
 
-    #[private]
+    #[public]
     fn verify_ZKP_10_public_inputs(
         verification_key: [Field;128], 
         proof: [Field;456], 
@@ -75,11 +75,56 @@ pub contract ZKPassportCredentialEmitter {
     }
 
     #[private]
-    fn prepare_message(
+    pub fn verify_and_publish(
+        // proofs: Proofs,
+        pub_key_x: [u8;32], pub_key_y: [u8;32], signature: [u8;64], 
         arb_address: [u8;20], // arbitrum address is 160 bits (20 bytes) so it should be 0x000...ADDRESS
+        hashed_message: [u8;32],
         vault_address: [u8;20], // vault address on arbitrurm (same as `arb_address`)
-        cred_tag: u8 // credential tag used to identify credential proof
-    ) -> [[u8;31];8] {
+        cred_tag: u8, // credential tag used to identify credential proof
+        wormhole_address: AztecAddress,
+        from: AztecAddress,
+    ) {
+        // 1. verify signature
+        let my_hashed_message: [u8;32] = keccak256([0;20], 20);
+        assert(hashed_message == my_hashed_message);
+
+        // let valid_signature = std::ecdsa_secp256k1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);
+        // assert(valid_signature, "FAILED SIG VERIFICATION"); 
+
+        // 2. verify zk passport proofs
+        // proof a has 2 public inputs
+        // verify_ZKP_2_public_inputs(
+        //     proofs.vkey_a,
+        //     proofs.proof_a,
+        //     proofs.pub_input_a,
+        //     0 
+        // );
+
+        // // proof b,c have 5 public inputs
+        // verify_ZKP_5_public_inputs(
+        //     proofs.vkey_b,
+        //     proofs.proof_b,
+        //     proofs.pub_input_b,
+        //     0
+        // );
+
+        // verify_ZKP_5_public_inputs(
+        //     proofs.vkey_c,
+        //     proofs.proof_c,
+        //     proofs.pub_input_c,
+        //     0
+        // );
+
+        //     // proof d has 2 public inputs
+        // verify_ZKP_2_public_inputs(
+        //     proofs.vkey_d,
+        //     proofs.proof_d,
+        //     proofs.pub_input_d,
+        //     0
+        // );
+
+        // 3. prepare message
         // MSG = [Arb_Addr, Arb_Chain_ID, Vault_Contract_Address, Credential_Tag, PADDING]
 
         // Payload Field 1: Arbitrum Address
@@ -104,77 +149,21 @@ pub contract ZKPassportCredentialEmitter {
         let mut payload4: [u8;31] = [0;31];
         payload4[0] = cred_tag;
 
-        // Payload Field 5: PADDING
-        // Payload Field 6: PADDING
-        // Payload Field 7: PADDING
-        // Payload Field 8: PADDING
+        // Payload Fields 5-8: PADDING
         let mut payload5: [u8;31] = [0;31];
         let mut payload6: [u8;31] = [0;31];
         let mut payload7: [u8;31] = [0;31];
         let mut payload8: [u8;31] = [0;31];
 
-        [payload1,payload2,payload3,payload4,payload5,payload6,payload7,payload8]
-    }
-
-    #[private]
-    fn verify_and_publish(
-        proofs: Proofs,
-        pub_key_x: [u8;32], pub_key_y: [u8;32], signature: [u8;64], 
-        arb_address: [u8;20],
-        vault_address: [u8;20],
-        cred_tag: u8,
-        wormhole_address: AztecAddress
-    ) {
-        // 1. verify signature
-        let hashed_message: [u8;32] = keccak256(arb_address, 20);
-        let valid_signature = std::ecdsa_secp256k1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);
-        assert(valid_signature); 
-
-        // 2. verify zk passport proofs
-        // proof a has 2 public inputs
-        verify_ZKP_2_public_inputs(
-            proofs.vkey_a,
-            proofs.proof_a,
-            proofs.pub_input_a,
-            0 
-        );
-
-        // proof b,c have 5 public inputs
-        verify_ZKP_5_public_inputs(
-            proofs.vkey_b,
-            proofs.proof_b,
-            proofs.pub_input_b,
-            0
-        );
-
-        verify_ZKP_5_public_inputs(
-            proofs.vkey_c,
-            proofs.proof_c,
-            proofs.pub_input_c,
-            0
-        );
-
-            // proof d has 2 public inputs
-        verify_ZKP_2_public_inputs(
-            proofs.vkey_d,
-            proofs.proof_d,
-            proofs.pub_input_d,
-            0
-        );
-
-        // 3. prepare message
-        let wormhole_payload = prepare_message(
-            arb_address,
-            vault_address,
-            cred_tag
-        );
+        let wormhole_payload = [payload1,payload2,payload3,payload4,payload5,payload6,payload7,payload8];
         
         // 4. call publish message
         let _ = Wormhole::at(wormhole_address).publish_message(
             1,
             wormhole_payload,
             2,
-            2
-        ).call(&mut context);
+            2,
+            from,
+        ).enqueue(&mut context);
     }
 }
