@@ -2,44 +2,31 @@
 import { getInitialTestAccountsWallets } from '@aztec/accounts/testing';
 import { Contract, createPXEClient, loadContractArtifact, waitForPXE } from '@aztec/aztec.js';
 import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import WormholeJson from "./wormhole_contracts-Wormhole.json" assert { type: "json" };
 
 const WormholeJsonContractArtifact = loadContractArtifact(WormholeJson);
 
 const { PXE_URL = 'http://localhost:8090' } = process.env;
 
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 // Get verification data from environment variable if present
 let verificationData = null;
 const hasMeaningfulData = process.env.HAS_MEANINGFUL_DATA === 'true';
-
-try {
-  if (process.env.VERIFICATION_DATA) {
-    verificationData = JSON.parse(Buffer.from(process.env.VERIFICATION_DATA, 'base64').toString());
-    
-    // Debug log all properties
-    console.log("Received verification data in script:");
-    console.log("- firstName:", verificationData.firstName);
-    console.log("- isOver18:", verificationData.isOver18);
-    console.log("- isEUCitizen:", verificationData.isEUCitizen);
-    console.log("- documentType:", verificationData.documentType);
-    console.log("- uniqueIdentifier:", verificationData.uniqueIdentifier);
-    console.log("- verified:", verificationData.verified);
-    console.log("Has meaningful data:", hasMeaningfulData);
-  } else {
-    console.log("No verification data provided");
-  }
-} catch (error) {
-  console.error("Error parsing verification data:", error);
-}
 
 async function main() {
   const pxe = createPXEClient(PXE_URL);
   await waitForPXE(pxe);
 
-  // Read the deployed contract address from addresses.json
+  // Read the deployed contract address from addresses.json in the same directory
   let addresses;
   try {
-    addresses = JSON.parse(readFileSync('/Users/stavrosvlachakis/AztecProjects/nethermindEth/aztec-wormhole-zkpassport/packages/frontend/app/contracts/addresses.json', 'utf8'));
+    const addressesPath = join(__dirname, 'addresses.json');
+    addresses = JSON.parse(readFileSync(addressesPath, 'utf8'));
   } catch (error) {
     console.error("Error reading addresses.json file:", error);
     process.exit(1);
@@ -81,7 +68,7 @@ async function main() {
   let messageBytes = encoder.encode(message);
   
   // Define a target Ethereum address to be stored with the message
-  const targetAddress = "0x94dFeceb91678ec912ef8f14c72721c102ed2Df7";
+  const targetAddress = "0xb4fFe5983B0B748124577Af4d16953bd096b6897";
   
   // Convert the address to bytes (removing 0x prefix and converting to bytes)
   const addressHex = targetAddress.slice(2); // Remove 0x
@@ -140,7 +127,7 @@ async function main() {
   
   // Send the message with nonce 100 and consistency level 2
   console.log("Sending transaction...");
-  const tx = await contract.methods.publish_message(100, payloads, 1, 2).send();
+  const tx = await contract.methods.publish_message(100, payloads, 2, 2).send();
   
   // Wait for the transaction to be mined
   const receipt = await tx.wait();
