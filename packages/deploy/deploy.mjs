@@ -10,7 +10,7 @@ import { TokenContract } from '@aztec/noir-contracts.js/Token';
 
 const EmitterContractArtifact = loadContractArtifact(EmitterJSON);
 
-const { PXE_URL = 'http://localhost:8080' } = process.env;
+const { PXE_URL = 'http://localhost:8090' } = process.env;
 
 
 // Call `aztec-nargo compile` to compile the contract
@@ -127,7 +127,7 @@ async function main() {
   console.log("Calling emitter verify and publish...") 
   const _tx = await contract.methods.verify_and_publish(
     pubKeyX, pubKeyY, signatureBytes, 
-    arb_address, getBytes(msgHash), vault_address, 0x3, wormhole_address, 
+    arb_address, vault_address, 0x3, wormhole_address, 
     ownerAddress // must be consistent with authwit above
   ).send().wait(); 
 

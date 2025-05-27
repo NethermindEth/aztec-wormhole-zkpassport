@@ -79,18 +79,16 @@ pub contract ZKPassportCredentialEmitter {
         // proofs: Proofs,
         pub_key_x: [u8;32], pub_key_y: [u8;32], signature: [u8;64], 
         arb_address: [u8;20], // arbitrum address is 160 bits (20 bytes) so it should be 0x000...ADDRESS
-        hashed_message: [u8;32],
         vault_address: [u8;20], // vault address on arbitrurm (same as `arb_address`)
         cred_tag: u8, // credential tag used to identify credential proof
         wormhole_address: AztecAddress,
         from: AztecAddress,
     ) {
         // 1. verify signature
-        let my_hashed_message: [u8;32] = keccak256([0;20], 20);
-        assert(hashed_message == my_hashed_message);
+        let hashed_message: [u8;32] = keccak256([0;20], 20);
 
-        // let valid_signature = std::ecdsa_secp256k1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);
-        // assert(valid_signature, "FAILED SIG VERIFICATION"); 
+        let valid_signature = std::ecdsa_secp256k1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);
+        assert(valid_signature, "FAILED SIG VERIFICATION"); 
 
         // 2. verify zk passport proofs
         // proof a has 2 public inputs
