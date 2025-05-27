@@ -18,7 +18,7 @@ contract VaultStorage {
     }
 
     struct State {
-        address payable wormhole;
+        address wormhole;
         
         Provider provider;
 
@@ -52,7 +52,7 @@ contract VaultState {
      * @param finality_ Number of confirmations required for finality
      */
     constructor(
-        address payable wormholeAddr,
+        address wormholeAddr,
         uint16 chainId_,
         uint256 evmChainId_,
         uint8 finality_
