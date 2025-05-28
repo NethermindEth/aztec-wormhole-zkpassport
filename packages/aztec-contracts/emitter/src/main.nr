@@ -2,10 +2,17 @@ use dep::aztec::macros::aztec;
 
 #[aztec]
 pub contract ZKPassportCredentialEmitter {
-    use dep::aztec::{macros::functions::{public,private}, prelude::AztecAddress, protocol_types::traits::{Deserialize, Serialize}};
+    use dep::aztec::{
+        macros::{
+            functions::{public,private},
+        }, 
+        prelude::{AztecAddress}, 
+        protocol_types::traits::{ToField,Deserialize, Serialize}
+    };
     use dep::std;
-    use dep::keccak256::keccak256;
     use dep::wormhole::Wormhole;
+    use dep::token::Token;
+    use dep::aztec::oracle::debug_log::{ debug_log,debug_log_format };
 
     #[derive(Deserialize, Serialize)]
     pub struct Proofs {
@@ -77,20 +84,16 @@ pub contract ZKPassportCredentialEmitter {
     #[private]
     pub fn verify_and_publish(
         // proofs: Proofs,
-        pub_key_x: [u8;32], pub_key_y: [u8;32], signature: [u8;64], 
         arb_address: [u8;20], // arbitrum address is 160 bits (20 bytes) so it should be 0x000...ADDRESS
         vault_address: [u8;20], // vault address on arbitrurm (same as `arb_address`)
         cred_tag: u8, // credential tag used to identify credential proof
         wormhole_address: AztecAddress,
+        token_address: AztecAddress, // address of the token to be donated
         from: AztecAddress,
+        to: AztecAddress, // donation address
+        amount: u128, // amount of tokens to be donated
     ) {
-        // 1. verify signature
-        let hashed_message: [u8;32] = keccak256([0;20], 20);
-
-        let valid_signature = std::ecdsa_secp256k1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);
-        assert(valid_signature, "FAILED SIG VERIFICATION"); 
-
-        // 2. verify zk passport proofs
+        // 1. verify zk passport proofs
         // proof a has 2 public inputs
         // verify_ZKP_2_public_inputs(
         //     proofs.vkey_a,
@@ -121,6 +124,14 @@ pub contract ZKPassportCredentialEmitter {
         //     proofs.pub_input_d,
         //     0
         // );
+
+        // 2. Perform zk Donation
+        let _ = Token::at(token_address).transfer_in_private(
+            from,
+            to,
+            amount,
+            0 as Field
+        ).call(&mut context);
 
         // 3. prepare message
         // MSG = [Arb_Addr, Arb_Chain_ID, Vault_Contract_Address, Credential_Tag, PADDING]

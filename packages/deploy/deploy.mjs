@@ -1,16 +1,14 @@
 // src/deploy.mjs
 import { getInitialTestAccountsWallets } from '@aztec/accounts/testing';
-import { AztecAddress, Contract, createPXEClient, Fr, loadContractArtifact, waitForPXE } from '@aztec/aztec.js';
+import { AztecAddress, Contract, createPXEClient, loadContractArtifact, waitForPXE, computeAuthWitMessageHash } from '@aztec/aztec.js';
 import EmitterJSON from "../aztec-contracts/emitter/target/emitter-ZKPassportCredentialEmitter.json" assert { type: "json" };
 
 import { writeFileSync } from 'fs';
-import { getBytes, keccak256, } from 'ethers';
-import { Wallet } from 'ethers';
 import { TokenContract } from '@aztec/noir-contracts.js/Token'; 
 
 const EmitterContractArtifact = loadContractArtifact(EmitterJSON);
 
-const { PXE_URL = 'http://localhost:8090' } = process.env;
+const { PXE_URL = 'http://localhost:8080' } = process.env;
 
 
 // Call `aztec-nargo compile` to compile the contract
@@ -33,6 +31,19 @@ async function mintTokensToPublic(
     .wait();
 }
 
+async function mintTokensToPrivate(
+  token, // TokenContract
+  minterWallet, 
+  recipient,
+  amount
+) {
+  const tokenAsMinter = await TokenContract.at(token.address, minterWallet);
+  await tokenAsMinter.methods
+    .mint_to_private(minterWallet.getAddress(), recipient, amount)
+    .send()
+    .wait();
+}
+
 async function main() {
   const pxe = createPXEClient(PXE_URL);
   await waitForPXE(pxe);
@@ -46,10 +57,10 @@ async function main() {
   console.log(`Receiver address: ${receiverWallet.getAddress()}`);
 
   // EXISTING WORMHOLE AND TOKEN CONTRACT ADDRESSES
-  const wormhole_address = AztecAddress.fromString("0x0a7f1665c8a03ff913a3272175c157aa444dea98cdbffead03d84d4f5ea9b41c");
-  const token_address = "0x22e3ec187680b67f71a89a1e63a80eb0272d3c420de66d4ffa937a76031a4a9d";
+  const wormhole_address = AztecAddress.fromString("0x11d1743b4ff7427e762875f07eec863ebf42e700c13344a826e6e967e7776d8d");
+  const token_address = "0x2e2647184acbb40be33ff9faac1a0dd6cfa97dc70a34199c5001e08835857ac5";
 
-  const emitter = await Contract.deploy(ownerWallet, EmitterContractArtifact)
+  const emitter = await Contract.deploy(ownerWallet, EmitterContractArtifact, [AztecAddress.fromString(token_address)])
       .send()
       .deployed();
 
@@ -67,7 +78,13 @@ async function main() {
     1000n
   );
 
-  console.log("Tokens minted to emitter address...");
+  console.log(`Minting tokens to private for owner...`);
+  await mintTokensToPrivate(
+    token,
+    ownerWallet,
+    ownerAddress,
+    100n
+  );
   
   const tokenTransferAction = token.methods.transfer_in_public(
     ownerAddress, 
@@ -75,8 +92,6 @@ async function main() {
     2n,
     31n
   ); 
-
-  console.log("Token transfer action created...");
 
   // generate authwit to allow for wormhole to send funds to itself on behalf of owner
   const validateActionInteraction = await ownerWallet.setPublicAuthWit(
@@ -86,8 +101,19 @@ async function main() {
     },
     true
   );
+
   console.log("Generating authwit for token transfer...");
   await validateActionInteraction.send().wait();
+
+  const donationAction = token.methods.transfer_in_private(
+    ownerWallet.getAddress(),
+    receiverWallet.getAddress(),
+    1n,
+    0n
+  );
+  console.log("Generating authwit for donation...");
+
+  const donationWitness = await ownerWallet.createAuthWit({ caller: emitter.address, action: donationAction });
 
   const addresses = { emitter: emitter.address.toString() };
   writeFileSync('addresses.json', JSON.stringify(addresses, null, 2));
@@ -106,30 +132,14 @@ async function main() {
       vault_address[i] = i+1;
   }
 
-  console.log(`arb: ${arb_address}`)
-  console.log("Generating signature...")
-
-  const ownerPrivateKey = ownerWallet.getSecretKey().toString(); 
-  const msgHash = keccak256(arb_address);
-  const wallet = new Wallet(ownerPrivateKey);
-  console.log(`msgHash: ${Fr.fromHexString(msgHash)}`);
-  
-  const signature = wallet.signingKey.sign(getBytes(msgHash));
-  const rBytes = getBytes(signature.r);
-  const sBytes = getBytes(signature.s);
-  const signatureBytes = [...rBytes, ...sBytes]; // [u8; 64]
-
-  const publicKey = wallet.signingKey.publicKey; // Uncompressed 65-byte key (0x04 + x + y)
-  const pubKeyBytes = getBytes(publicKey); // Uint8Array
-  const pubKeyX = pubKeyBytes.slice(1, 33); // [u8; 32]
-  const pubKeyY = pubKeyBytes.slice(33, 65); // [u8; 32]
+  console.log(`arb: ${arb_address} \nvault: ${vault_address}`);
 
   console.log("Calling emitter verify and publish...") 
+  
   const _tx = await contract.methods.verify_and_publish(
-    pubKeyX, pubKeyY, signatureBytes, 
-    arb_address, vault_address, 0x3, wormhole_address, 
-    ownerAddress // must be consistent with authwit above
-  ).send().wait(); 
+    arb_address, vault_address, 0x3, wormhole_address, token.address,
+    ownerWallet.getAddress(), receiverWallet.getAddress(), 1 // must be consistent with authwit above
+  ).send( { authWitnesses: [donationWitness] }).wait(); 
 
   const sampleLogFilter = {
       fromBlock: 0,

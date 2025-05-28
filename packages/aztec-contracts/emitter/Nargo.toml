@@ -5,5 +5,5 @@ authors = [""]
 
 [dependencies]
 aztec = { git="https://github.com/AztecProtocol/aztec-packages/", tag="v0.87.2", directory="noir-projects/aztec-nr/aztec" }
-keccak256 = { tag = "v0.1.0", git = "https://github.com/noir-lang/keccak256" }
 wormhole = { git="https://github.com/NethermindEth/wormhole", tag="feat/aztec-contracts", directory="aztec/contracts" }
+token = { git = "https://github.com/AztecProtocol/aztec-packages/", tag = "v0.87.2", directory = "noir-projects/noir-contracts/contracts/app/token_contract"}
