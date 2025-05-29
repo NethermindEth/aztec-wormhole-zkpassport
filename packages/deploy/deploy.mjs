@@ -8,7 +8,7 @@ import { TokenContract } from '@aztec/noir-contracts.js/Token';
 
 const EmitterContractArtifact = loadContractArtifact(EmitterJSON);
 
-const { PXE_URL = 'http://localhost:8080' } = process.env;
+const { PXE_URL = 'http://localhost:8090' } = process.env;
 
 
 // Call `aztec-nargo compile` to compile the contract
