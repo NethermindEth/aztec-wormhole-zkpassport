@@ -12,7 +12,6 @@ pub contract ZKPassportCredentialEmitter {
     use dep::std;
     use dep::wormhole::Wormhole;
     use dep::token::Token;
-    use dep::aztec::oracle::debug_log::{ debug_log,debug_log_format };
 
     #[derive(Deserialize, Serialize)]
     pub struct Proofs {
@@ -33,7 +32,7 @@ pub contract ZKPassportCredentialEmitter {
         pub pub_input_d: [Field; 2],
     }
 
-    #[public]
+    #[private]
     fn verify_ZKP_2_public_inputs(
         verification_key: [Field;128], 
         proof: [Field;456], 
@@ -49,7 +48,7 @@ pub contract ZKPassportCredentialEmitter {
         );
     }
 
-    #[public]
+    #[private]
     fn verify_ZKP_5_public_inputs(
         verification_key: [Field;128], 
         proof: [Field;456], 
@@ -65,7 +64,7 @@ pub contract ZKPassportCredentialEmitter {
         );
     }
 
-    #[public]
+    #[private]
     fn verify_ZKP_10_public_inputs(
         verification_key: [Field;128], 
         proof: [Field;456], 
@@ -90,8 +89,8 @@ pub contract ZKPassportCredentialEmitter {
         wormhole_address: AztecAddress,
         token_address: AztecAddress, // address of the token to be donated
         from: AztecAddress,
-        to: AztecAddress, // donation address
-        amount: u128, // amount of tokens to be donated
+        to: AztecAddress, // bridge address
+        amount: u128, // amount of tokens to be donated on arbitrum
     ) {
         // 1. verify zk passport proofs
         // proof a has 2 public inputs
@@ -128,7 +127,7 @@ pub contract ZKPassportCredentialEmitter {
         // 2. Perform zk Donation
         let _ = Token::at(token_address).transfer_in_private(
             from,
-            to,
+            to, // should be hardcoded to the bridge address but for demo purposes the user can supply it
             amount,
             0 as Field
         ).call(&mut context);
