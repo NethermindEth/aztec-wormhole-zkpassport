@@ -85,12 +85,14 @@ async function main() {
     ownerAddress,
     100n
   );
+
+  const token_nonce = 33n;
   
   const tokenTransferAction = token.methods.transfer_in_public(
     ownerAddress, 
     receiverWallet.getAddress(),
     2n,
-    31n
+    token_nonce  
   ); 
 
   // generate authwit to allow for wormhole to send funds to itself on behalf of owner
@@ -109,7 +111,7 @@ async function main() {
     ownerWallet.getAddress(),
     receiverWallet.getAddress(),
     1n,
-    0n
+    token_nonce 
   );
   console.log("Generating authwit for donation...");
 
@@ -132,13 +134,17 @@ async function main() {
       vault_address[i] = i+1;
   }
 
+  let dummy_msg = new Uint8Array(32);
+  dummy_msg.fill(1);
+  let payload = [dummy_msg, dummy_msg, dummy_msg, dummy_msg, dummy_msg, dummy_msg, dummy_msg, dummy_msg];
+
   console.log(`arb: ${arb_address} \nvault: ${vault_address}`);
 
   console.log("Calling emitter verify and publish...") 
   
   const _tx = await contract.methods.verify_and_publish(
-    arb_address, vault_address, 0x3, wormhole_address, token.address,
-    ownerWallet.getAddress(), receiverWallet.getAddress(), 1 // must be consistent with authwit above
+    arb_address, vault_address, payload, wormhole_address, token.address,
+    ownerWallet.getAddress(), 1, token_nonce // must be consistent with authwit above
   ).send( { authWitnesses: [donationWitness] }).wait(); 
 
   const sampleLogFilter = {

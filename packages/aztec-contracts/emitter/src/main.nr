@@ -4,10 +4,10 @@ use dep::aztec::macros::aztec;
 pub contract ZKPassportCredentialEmitter {
     use dep::aztec::{
         macros::{
-            functions::{public,private},
+            functions::private,
         }, 
         prelude::{AztecAddress}, 
-        protocol_types::traits::{ToField,Deserialize, Serialize}
+        protocol_types::traits::{Deserialize, Serialize}
     };
     use dep::std;
     use dep::wormhole::Wormhole;
@@ -33,103 +33,63 @@ pub contract ZKPassportCredentialEmitter {
     }
 
     #[private]
-    fn verify_ZKP_2_public_inputs(
-        verification_key: [Field;128], 
-        proof: [Field;456], 
-        public_inputs: [Field;2], 
-        key_hash: Field
-    ){
-        std::verify_proof_with_type(
-            verification_key,
-            proof,
-            public_inputs,
-            key_hash,
-            1
-        );
-    }
-
-    #[private]
-    fn verify_ZKP_5_public_inputs(
-        verification_key: [Field;128], 
-        proof: [Field;456], 
-        public_inputs: [Field;5], 
-        key_hash: Field
-    ){
-        std::verify_proof_with_type(
-            verification_key,
-            proof,
-            public_inputs,
-            key_hash,
-            1
-        );
-    }
-
-    #[private]
-    fn verify_ZKP_10_public_inputs(
-        verification_key: [Field;128], 
-        proof: [Field;456], 
-        public_inputs: [Field;10], 
-        key_hash: Field
-    ){
-        std::verify_proof_with_type(
-            verification_key,
-            proof,
-            public_inputs,
-            key_hash,
-            1
-        );
-    }
-
-    #[private]
     pub fn verify_and_publish(
-        // proofs: Proofs,
+        proofs: Proofs,
         arb_address: [u8;20], // arbitrum address is 160 bits (20 bytes) so it should be 0x000...ADDRESS
         vault_address: [u8;20], // vault address on arbitrurm (same as `arb_address`)
-        cred_tag: u8, // credential tag used to identify credential proof
+        msg: [[u8;31];5],
         wormhole_address: AztecAddress,
         token_address: AztecAddress, // address of the token to be donated
         from: AztecAddress,
-        to: AztecAddress, // bridge address
         amount: u128, // amount of tokens to be donated on arbitrum
+        nonce: Field
     ) {
         // 1. verify zk passport proofs
         // proof a has 2 public inputs
-        // verify_ZKP_2_public_inputs(
-        //     proofs.vkey_a,
-        //     proofs.proof_a,
-        //     proofs.pub_input_a,
-        //     0 
-        // );
+        std::verify_proof_with_type(
+            proofs.vkey_a,
+            proofs.proof_a,
+            proofs.pub_input_a,
+            0 as Field,
+            1
+        );
 
-        // // proof b,c have 5 public inputs
-        // verify_ZKP_5_public_inputs(
-        //     proofs.vkey_b,
-        //     proofs.proof_b,
-        //     proofs.pub_input_b,
-        //     0
-        // );
+        // proof b,c have 5 public inputs
+        std::verify_proof_with_type(
+            proofs.vkey_b,
+            proofs.proof_b,
+            proofs.pub_input_b,
+            0 as Field,
+            1
+        );
 
-        // verify_ZKP_5_public_inputs(
-        //     proofs.vkey_c,
-        //     proofs.proof_c,
-        //     proofs.pub_input_c,
-        //     0
-        // );
+        std::verify_proof_with_type(
+            proofs.vkey_c,
+            proofs.proof_c,
+            proofs.pub_input_c,
+            0 as Field,
+            1
+        );
 
-        //     // proof d has 2 public inputs
-        // verify_ZKP_2_public_inputs(
-        //     proofs.vkey_d,
-        //     proofs.proof_d,
-        //     proofs.pub_input_d,
-        //     0
-        // );
+        // proof d has 2 public inputs
+        std::verify_proof_with_type(
+            proofs.vkey_d,
+            proofs.proof_d,
+            proofs.pub_input_d,
+            0 as Field,
+            1
+        );
+
+        let bridge_address = AztecAddress {
+            inner: 0x1f41267c06dae96c9c3906c5f77cbc28602cc70d6d7e9d2c3072cb0a5b13edd2 // This is a placeholder, replace with actual bridge address
+        };
 
         // 2. Perform zk Donation
         let _ = Token::at(token_address).transfer_in_private(
             from,
-            to, // should be hardcoded to the bridge address but for demo purposes the user can supply it
+            bridge_address, // should be hardcoded to the bridge address but for demo purposes the user can supply it
             amount,
-            0 as Field
+            nonce
         ).call(&mut context);
 
         // 3. prepare message
@@ -153,17 +113,9 @@ pub contract ZKPassportCredentialEmitter {
             payload3[i] = vault_address[i];
         }
 
-        // Payload Field 4: Credential Tag
-        let mut payload4: [u8;31] = [0;31];
-        payload4[0] = cred_tag;
-
-        // Payload Fields 5-8: PADDING
-        let mut payload5: [u8;31] = [0;31];
-        let mut payload6: [u8;31] = [0;31];
-        let mut payload7: [u8;31] = [0;31];
-        let mut payload8: [u8;31] = [0;31];
-
-        let wormhole_payload = [payload1,payload2,payload3,payload4,payload5,payload6,payload7,payload8];
+        // Payload Field 4-8: Message
+        // The message is already in the format of 5 u8s, so we can directly use it
+        let wormhole_payload = [payload1,payload2,payload3, msg[0], msg[1], msg[2], msg[3], msg[4]];
         
         // 4. call publish message
         let _ = Wormhole::at(wormhole_address).publish_message(
@@ -172,6 +124,7 @@ pub contract ZKPassportCredentialEmitter {
             2,
             2,
             from,
+            nonce,
         ).enqueue(&mut context);
     }
 }
