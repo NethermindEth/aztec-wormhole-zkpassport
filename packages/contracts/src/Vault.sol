@@ -21,6 +21,15 @@ contract Vault is VaultGetters {
     event EmitterRegistered(uint16 indexed chainId, bytes32 emitterAddress);
 
     /**
+     * @dev Event emitted when a message is processed and stored
+     * @param arbitrumAddress The Arbitrum address extracted from the payload
+     * @param messageLength The length of the stored message
+     */
+    event MessageStored(address indexed arbitrumAddress, uint256 messageLength);
+
+    // No debugging events needed
+
+    /**
      * @dev Constructor initializes parent VaultGetters
      * @param wormholeAddr Address of the Wormhole contract
      * @param chainId_ Chain ID for this vault
@@ -35,12 +44,16 @@ contract Vault is VaultGetters {
     ) VaultGetters(wormholeAddr, chainId_, evmChainId_, finality_) {}
 
     /**
-     * @notice Verifies a VAA (Verified Action Approval)
-     * @dev Validates that a VAA is properly signed and from a recognized emitter
+     * @notice Verifies a VAA (Verified Action Approval) and stores extracted data
+     * @dev Validates that a VAA is properly signed and automatically stores the message
      * @param encodedVm A byte array containing a VAA signed by the guardians
      */
-    function verify(bytes memory encodedVm) external view {
-        _verify(encodedVm);
+    function verify(bytes memory encodedVm) external {
+        // Get the payload by verifying the VAA
+        bytes memory payload = _verify(encodedVm);
+        
+        // Extract and store data from the payload
+        _processPayload(payload);
     }
 
     /**
@@ -59,6 +72,46 @@ contract Vault is VaultGetters {
         require(verifyVaultVM(vm), "Invalid emitter: source not recognized");
 
         return vm.payload;
+    }
+
+    /**
+     * @dev Processes the verified payload by extracting and storing data
+     * @param payload The verified VAA payload
+     */
+    function _processPayload(bytes memory payload) internal {
+        // Ensure payload is long enough
+        require(payload.length >= 20, "Payload too short");
+        
+        // Extract Arbitrum address and message from payload
+        address arbitrumAddress;
+        bytes memory message;
+        
+        // Safely extract address from first 20 bytes
+        assembly {
+            // Load the first 32 bytes (which includes our 20 byte address)
+            let addressData := mload(add(payload, 32))
+            // Shift right by 12 bytes (32 - 20) to align the address
+            arbitrumAddress := shr(96, addressData)
+        }
+        
+        // Create message from remaining bytes
+        if (payload.length > 20) {
+            message = new bytes(payload.length - 20);
+            for (uint i = 0; i < payload.length - 20; i++) {
+                message[i] = payload[i + 20];
+            }
+        } else {
+            message = new bytes(0);
+        }
+        
+        // Ensure the extracted address is valid
+        require(arbitrumAddress != address(0), "Invalid address extracted");
+        
+        // Store the message
+        _state.arbitrumMessages[arbitrumAddress] = message;
+        
+        // Emit event for successful storage
+        emit MessageStored(arbitrumAddress, message.length);
     }
 
     /**
@@ -89,5 +142,14 @@ contract Vault is VaultGetters {
         _state.vaultImplementations[chainId_] = emitterAddress_;
         
         emit EmitterRegistered(chainId_, emitterAddress_);
+    }
+
+        /**
+     * @dev Gets the stored message for a given Arbitrum public key
+     * @param arbitrumAddress The Arbitrum public key address
+     * @return bytes The stored message
+     */
+    function getArbitrumMessage(address arbitrumAddress) public view returns (bytes memory) {
+        return _state.arbitrumMessages[arbitrumAddress];
     }
 }

@@ -17,20 +17,23 @@ contract VaultStorage {
         bytes32 governanceContract;
     }
 
-struct State {
-    address payable wormhole;
-    
-    Provider provider;
+    struct State {
+        address wormhole;
+        
+        Provider provider;
 
-    // Only keep the mappings you actually use
-    mapping(address => bool) initializedImplementations;
-    
-    // Keep this for VAA verification
-    mapping(uint16 => bytes32) vaultImplementations;
-    
-    // EIP-155 Chain ID
-    uint256 evmChainId;
-}
+        // Only keep the mappings you actually use
+        mapping(address => bool) initializedImplementations;
+        
+        // Keep this for VAA verification
+        mapping(uint16 => bytes32) vaultImplementations;
+        
+        // EIP-155 Chain ID
+        uint256 evmChainId;
+        
+        // Store Arbitrum public key -> message mapping
+        mapping(address => bytes) arbitrumMessages;
+    }
 }
 
 /**
@@ -49,7 +52,7 @@ contract VaultState {
      * @param finality_ Number of confirmations required for finality
      */
     constructor(
-        address payable wormholeAddr,
+        address wormholeAddr,
         uint16 chainId_,
         uint256 evmChainId_,
         uint8 finality_
