@@ -1,24 +1,34 @@
 "use client"
 import { useEffect, useRef, useState } from "react"
-import { ZKPassport, type ProofResult, EU_COUNTRIES } from "@zkpassport/sdk"
+import { ZKPassport, type ProofResult, EU_COUNTRIES, type QueryResult, type QueryResultErrors } from "@zkpassport/sdk"
 import QRCode from "react-qr-code"
 
 export default function Home() {
+  // User data state variables
   const [message, setMessage] = useState("")
   const [firstName, setFirstName] = useState("")
   const [isEUCitizen, setIsEUCitizen] = useState<boolean | undefined>(undefined)
   const [isOver18, setIsOver18] = useState<boolean | undefined>(undefined)
+  const [documentType, setDocumentType] = useState("")
   const [queryUrl, setQueryUrl] = useState("")
   const [uniqueIdentifier, setUniqueIdentifier] = useState("")
   const [verified, setVerified] = useState<boolean | undefined>(undefined)
+  
+  // UI state variables
   const [requestInProgress, setRequestInProgress] = useState(false)
   const [txHash, setTxHash] = useState("")
   const [txStatus, setTxStatus] = useState("")
   const [arbitrumMessage, setArbitrumMessage] = useState<string | null>(null)
   const [isPolling, setIsPolling] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [showQRCode, setShowQRCode] = useState(true)
+  
+  // Refs
   const zkPassportRef = useRef<ZKPassport | null>(null)
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Initialize ZKPassport on component mount
   useEffect(() => {
     if (!zkPassportRef.current) {
       zkPassportRef.current = new ZKPassport(window.location.hostname)
@@ -34,13 +44,17 @@ export default function Home() {
     }
   }, [])
 
+  // Create the ZKPassport verification request
   const createRequest = async () => {
     if (!zkPassportRef.current) {
       return
     }
+    
+    // Reset all state
     setFirstName("")
     setIsEUCitizen(undefined)
     setMessage("")
+    setDocumentType("")
     setQueryUrl("")
     setIsOver18(undefined)
     setUniqueIdentifier("")
@@ -49,179 +63,169 @@ export default function Home() {
     setTxStatus("")
     setArbitrumMessage(null)
     setIsPolling(false)
+    setShowQRCode(true)
+    setError("")
 
-    const queryBuilder = await zkPassportRef.current.request({
-      name: "ZKPassport",
-      logo: "https://zkpassport.id/favicon.png",
-      purpose: "Proof of EU citizenship and firstname",
-      scope: "eu-adult",
-      mode: "fast",
-      devMode: true,
-    })
+    try {
+      setIsLoading(true)
+      
+      // Create the verification request
+      const serviceScope = "obsidion-wallet-personhood"
+      const queryBuilder = await zkPassportRef.current.request({
+        name: "Obsidion Wallet",
+        logo: window.location.origin + "/wallet-logo.png",
+        purpose: "Prove your personhood and EU citizenship",
+        scope: serviceScope,
+        mode: "fast",
+        devMode: true,
+      })
 
-    const { url, onRequestReceived, onGeneratingProof, onProofGenerated, onResult, onReject, onError } = queryBuilder
-      .in("issuing_country", [...EU_COUNTRIES, "Zero Knowledge Republic"])
-      .disclose("firstname")
-      .gte("age", 18)
-      .disclose("document_type")
-      .done()
+      // Build the query with your requirements
+      const { 
+        url, 
+        requestId,
+        onRequestReceived, 
+        onGeneratingProof, 
+        onProofGenerated, 
+        onResult, 
+        onReject, 
+        onError 
+      } = queryBuilder
+        .in("issuing_country", [...EU_COUNTRIES, "Zero Knowledge Republic"])
+        .disclose("firstname")
+        .gte("age", 18)
+        .disclose("document_type")
+        .done()
 
-    setQueryUrl(url)
-    console.log(url)
+      setQueryUrl(url)
+      console.log("Verification URL:", url)
+      console.log("Request ID:", requestId)
 
-    setRequestInProgress(true)
+      setRequestInProgress(true)
 
-    onRequestReceived(() => {
-      console.log("QR code scanned")
-      setMessage("Request received")
-    })
+      onRequestReceived(() => {
+        console.log("QR code scanned - Request received")
+        setMessage("Request received")
+      })
 
-    onGeneratingProof(() => {
-      console.log("Generating proof")
-      setMessage("Generating proof...")
-    })
+      onGeneratingProof(() => {
+        console.log("Generating proof")
+        setMessage("Generating proof...")
+      })
 
-    const proofs: ProofResult[] = []
+      onProofGenerated((proofResult: ProofResult) => {
+        console.log("Proof generated:", proofResult)
+        setMessage(`Proof received: ${proofResult.name}`)
+      })
 
-    onProofGenerated((result: ProofResult) => {
-      console.log("Proof result", result)
-      proofs.push(result)
-      setMessage(`Proofs received`)
-      setRequestInProgress(false)
-    })
+      // Handle query results, but ignore the actual proofs
+      onResult(async ({ 
+        result, 
+        uniqueIdentifier, 
+        verified: verificationResult, 
+        queryResultErrors 
+      }: {
+        result: QueryResult
+        uniqueIdentifier?: string
+        verified: boolean
+        queryResultErrors?: QueryResultErrors
+      }) => {
+        console.log("Result of the query", result)
+        console.log("Query result errors", queryResultErrors)
+        console.log("Verification result:", verificationResult)
+        console.log("Unique identifier:", uniqueIdentifier)
 
-    onResult(async ({ result, uniqueIdentifier, verified, queryResultErrors }) => {
-      console.log("Result of the query", result)
-      console.log("Query result errors", queryResultErrors)
-
-      // Store the verification results in state
-      setFirstName(result?.firstname?.disclose?.result)
-      setIsEUCitizen(result?.issuing_country?.in?.result)
-      setIsOver18(result?.age?.gte?.result)
-      setMessage("Result received")
-      setUniqueIdentifier(uniqueIdentifier || "")
-      setVerified(verified)
-      setRequestInProgress(false)
-
-      // If age verification is successful, send the message with the RESULT data directly
-      if (result?.age?.gte?.result === true) {
-        // Create the verification data directly from the result
+        // Extract data from results
+        const firstName = result?.firstname?.disclose?.result || ""
+        const isEUCitizen = result?.issuing_country?.in?.result || false
+        const isOver18 = result?.age?.gte?.result || false
+        const documentType = result?.document_type?.disclose?.result || ""
+        
+        // Store the results in state
+        setFirstName(firstName)
+        setIsEUCitizen(isEUCitizen)
+        setIsOver18(isOver18)
+        setDocumentType(documentType)
+        setMessage("User verification completed")
+        setUniqueIdentifier(uniqueIdentifier || "")
+        setVerified(verificationResult)
+        setRequestInProgress(false)
+        
+        // Auto close QR code after verification
+        setTimeout(() => setShowQRCode(false), 1000)
+        
+        // Prepare verification data for sending to the API
+        // We only include user data, NOT proofs
         const verificationData = {
-          firstName: result.firstname?.disclose?.result || "",
-          isOver18: result.age?.gte?.result === true,
-          isEUCitizen: result.issuing_country?.in?.result === true,
-          documentType: result.document_type?.disclose?.result || "",
+          firstName: firstName,
+          isOver18: isOver18,
+          isEUCitizen: isEUCitizen,
+          documentType: documentType,
           uniqueIdentifier: uniqueIdentifier || "",
-          verified: verified === true,
+          // Not including any proof data
         }
-
-        console.log("Sending verification data:", verificationData)
-        await sendMessageWithData(verificationData)
-      }
-    })
-
-    onReject(() => {
-      console.log("User rejected")
-      setMessage("User rejected the request")
-      setRequestInProgress(false)
-    })
-
-    onError((error: unknown) => {
-      console.error("Error", error)
-      setMessage("An error occurred")
-      setRequestInProgress(false)
-    })
-  }
-
-  // Function to send message with provided verification data
-  const sendMessageWithData = async (verificationData: any) => {
-    setTxStatus("Sending message with verification data...")
-    setTxHash("")
-
-    try {
-      // Call the API route with the provided verification data
-      const response = await fetch("/api/send-message", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(verificationData),
+        
+        console.log("Sending verification data to API:", verificationData)
+        
+        // Send data to API
+        setTxStatus("Sending verification data to Aztec contract...")
+        setTxHash("")
+        
+        try {
+          const response = await fetch("/api/send-message", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(verificationData)
+          })
+          
+          if (!response.ok) {
+            throw new Error(`Error: ${response.status}`)
+          }
+          
+          const data = await response.json()
+          console.log("API response:", data)
+          
+          if (data.success) {
+            setTxStatus("Verification data sent successfully to Aztec contract!")
+            setTxHash(data.txHash)
+            startPollingArbitrumMessage()
+          } else {
+            setTxStatus(`Error: ${data.error}`)
+          }
+        } catch (error) {
+          console.error("Error sending verification data to API:", error)
+          setTxStatus(`Error: ${error instanceof Error ? error.message : "Unknown error"}`)
+        }
       })
 
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status}`)
-      }
-
-      const data = await response.json()
-      console.log("API response:", data)
-
-      if (data.success) {
-        setTxStatus("Message sent successfully!")
-        setTxHash(data.txHash)
-
-        // Start polling after successful message sending
-        startPollingArbitrumMessage()
-      } else {
-        setTxStatus(`Error: ${data.error}`)
-      }
-    } catch (error) {
-      console.error("Error sending message:", error)
-      setTxStatus(`Error: ${error instanceof Error ? error.message : "Unknown error"}`)
-    }
-  }
-
-  // Legacy function to maintain compatibility with existing code
-  const sendMessage = async () => {
-    setTxStatus("Sending message...")
-    setTxHash("")
-
-    try {
-      // Collect verification data from state
-      const verificationData = {
-        firstName: firstName || "",
-        isOver18: isOver18 === true,
-        isEUCitizen: isEUCitizen === true,
-        documentType: "", // We don't have this in state
-        uniqueIdentifier: uniqueIdentifier || "",
-        verified: verified === true,
-      }
-
-      console.log("Sending verification data from state:", verificationData)
-
-      // Call the API route with verification data
-      const response = await fetch("/api/send-message", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(verificationData),
+      onReject(() => {
+        console.log("User rejected")
+        setMessage("User rejected the request")
+        setRequestInProgress(false)
+        setIsLoading(false)
       })
 
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status}`)
-      }
+      onError((error: unknown) => {
+        console.error("ZKPassport error:", error)
+        setMessage("An error occurred")
+        setRequestInProgress(false)
+        setIsLoading(false)
+        setError("Failed to complete ZKPassport verification")
+      })
 
-      const data = await response.json()
-      console.log(data)
-
-      if (data.success) {
-        setTxStatus("Message sent successfully!")
-        setTxHash(data.txHash)
-
-        // Start polling after successful message sending
-        startPollingArbitrumMessage()
-      } else {
-        setTxStatus(`Error: ${data.error}`)
-      }
-    } catch (error) {
-      console.error("Error sending message:", error)
-      setTxStatus(`Error: ${error instanceof Error ? error.message : "Unknown error"}`)
+      setIsLoading(false)
+    } catch (err) {
+      console.error("Error initializing ZKPassport:", err)
+      setError("Failed to initialize ZKPassport verification")
+      setIsLoading(false)
+      setRequestInProgress(false)
     }
   }
 
   // Function to start polling for Arbitrum message
   const startPollingArbitrumMessage = () => {
-    // Stop any existing polling
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current)
     }
@@ -229,23 +233,17 @@ export default function Home() {
     setIsPolling(true)
     setTxStatus((prevStatus) => `${prevStatus} - Polling for Arbitrum message...`)
 
-    // Get the address to check
-    // If uniqueIdentifier is an address, use it; otherwise use a default
     let addressToCheck = uniqueIdentifier
-
-    // If the uniqueIdentifier is not a valid Ethereum address, use default
     if (!addressToCheck || !addressToCheck.match(/^(0x)?[0-9a-fA-F]{40}$/)) {
-      addressToCheck = process.env.NEXT_PUBLIC_DEFAULT_ADDRESS || "0xb4fFe5983B0B748124577Af4d16953bd096b6897"
+      addressToCheck = process.env.NEXT_PUBLIC_DEFAULT_ADDRESS || "0xd611F1AF9D056f00F49CB036759De2753EfA82c2"
     }
 
-    // Ensure it has 0x prefix
     if (!addressToCheck.startsWith("0x")) {
       addressToCheck = `0x${addressToCheck}`
     }
 
     console.log(`Polling for Arbitrum message at address: ${addressToCheck}`)
 
-    // Start polling
     pollingIntervalRef.current = setInterval(
       async () => {
         try {
@@ -266,12 +264,10 @@ export default function Home() {
           console.log("Polling response:", data)
 
           if (data.success && (data.decodedMessage || data.message) && data.message !== "0x") {
-            // We found a non-empty message, prioritize the decoded message if available
             setArbitrumMessage(data.decodedMessage || data.message)
             setTxStatus("Arbitrum message received!")
             setIsPolling(false)
 
-            // Stop polling
             if (pollingIntervalRef.current) {
               clearInterval(pollingIntervalRef.current)
               pollingIntervalRef.current = null
@@ -281,7 +277,6 @@ export default function Home() {
           console.error("Error polling Arbitrum message:", error)
           setTxStatus(`Error polling: ${error instanceof Error ? error.message : "Unknown error"}`)
 
-          // Stop polling on error to prevent continuous error messages
           if (pollingIntervalRef.current) {
             clearInterval(pollingIntervalRef.current)
             pollingIntervalRef.current = null
@@ -290,10 +285,9 @@ export default function Home() {
         }
       },
       Number.parseInt(process.env.NEXT_PUBLIC_POLLING_INTERVAL || "5000"),
-    ) // Poll using configured interval or default to 5 seconds
+    )
   }
 
-  // Function to manually stop polling
   const stopPolling = () => {
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current)
@@ -303,25 +297,17 @@ export default function Home() {
     setTxStatus((prevStatus) => `${prevStatus} - Polling stopped.`)
   }
 
-  // Format the arbitrum message for display
   const formatMessage = (message: string | null): string => {
     if (!message) return ""
-
-    // If it's already a string, return it
     if (typeof message === "string") {
-      // Check if it looks like a hex string that needs decoding
       if (message.startsWith("0x")) {
         return "Message verified from blockchain"
       }
       return message
     }
-
-    // If it's an object with decodedMessage, return that
     if (typeof message === "object" && message !== null) {
       return (message as any).decodedMessage || "Message verified from blockchain"
     }
-
-    // Fallback
     return JSON.stringify(message)
   }
 
@@ -343,7 +329,7 @@ export default function Home() {
             <div className="bg-white rounded-xl shadow-lg p-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-4">🔄 Verification Request</h2>
 
-              {queryUrl ? (
+              {showQRCode && queryUrl ? (
                 <div className="text-center">
                   <div className="bg-gray-50 p-4 rounded-lg inline-block border-2 border-dashed border-gray-300">
                     <QRCode value={queryUrl} size={180} />
@@ -373,14 +359,24 @@ export default function Home() {
                 </div>
               )}
 
+              {/* Error Message */}
+              {error && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-center">
+                    <span className="text-red-600 mr-2">⚠️</span>
+                    <span className="text-red-800 font-medium">{error}</span>
+                  </div>
+                </div>
+              )}
+
               {/* Action Button */}
               <div className="mt-4">
                 <button
                   className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={createRequest}
-                  disabled={requestInProgress}
+                  disabled={requestInProgress || isLoading}
                 >
-                  {requestInProgress ? "🔄 Processing..." : "🛡️ Generate New Request"}
+                  {requestInProgress || isLoading ? "🔄 Processing..." : "🛡️ Generate New Request"}
                 </button>
               </div>
             </div>
@@ -400,6 +396,15 @@ export default function Home() {
                     <span className="font-medium text-gray-700">First Name</span>
                   </div>
                   <span className="text-gray-900 font-semibold">{firstName || "Not verified"}</span>
+                </div>
+
+                {/* Document Type */}
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center">
+                    <span className="text-lg mr-2">📄</span>
+                    <span className="font-medium text-gray-700">Document Type</span>
+                  </div>
+                  <span className="text-gray-900 font-semibold">{documentType || "Not verified"}</span>
                 </div>
 
                 {/* EU Citizenship */}
@@ -454,7 +459,7 @@ export default function Home() {
                           {verified ? "Verification Successful" : "Verification Failed"}
                         </p>
                         <p className={`text-sm ${verified ? "text-green-600" : "text-red-600"}`}>
-                          {verified ? "All checks passed" : "One or more checks failed"}
+                          {verified ? "User identity verified" : "Unable to verify user identity"}
                         </p>
                       </div>
                     </div>

@@ -1,7 +1,7 @@
 // src/deploy.mjs
 import { getInitialTestAccountsWallets } from '@aztec/accounts/testing';
-import { AztecAddress, Contract, createPXEClient, loadContractArtifact, waitForPXE, computeAuthWitMessageHash } from '@aztec/aztec.js';
-import EmitterJSON from "../aztec-contracts/emitter/target/emitter-ZKPassportCredentialEmitter.json" assert { type: "json" };
+import { AztecAddress, Contract, createPXEClient, loadContractArtifact, waitForPXE } from '@aztec/aztec.js';
+import EmitterJSON from "./emitter-ZKPassportCredentialEmitter.json" assert { type: "json" };
 
 import { writeFileSync } from 'fs';
 import { TokenContract } from '@aztec/noir-contracts.js/Token'; 
@@ -57,8 +57,8 @@ async function main() {
   console.log(`Receiver address: ${receiverWallet.getAddress()}`);
 
   // EXISTING WORMHOLE AND TOKEN CONTRACT ADDRESSES
-  const wormhole_address = AztecAddress.fromString("0x11d1743b4ff7427e762875f07eec863ebf42e700c13344a826e6e967e7776d8d");
-  const token_address = "0x2e2647184acbb40be33ff9faac1a0dd6cfa97dc70a34199c5001e08835857ac5";
+  const wormhole_address = AztecAddress.fromString("0x2bad1647bcc984833b3eca33a9753f1878a8d81ee8e40ad2e60dd7bbc0840770");
+  const token_address = "0x0032b802142cb4f87460882d5ccc2f78a2daabe7a807a8ae214cbb590e3000c3";
 
   const emitter = await Contract.deploy(ownerWallet, EmitterContractArtifact, [AztecAddress.fromString(token_address)])
       .send()
@@ -126,25 +126,36 @@ async function main() {
 
   console.log("Defining addresses...")
   
-  let arb_address = new Uint8Array(20);
-  let vault_address = new Uint8Array(20);
+  let vault_address = new Uint8Array(31);
   
-  for (let i = 0; i < 20; i++) {
-      arb_address[i] = 0;
+  for (let i = 0; i < 31; i++) {
       vault_address[i] = i+1;
   }
 
-  let dummy_msg = new Uint8Array(32);
-  dummy_msg.fill(1);
-  let payload = [dummy_msg, dummy_msg, dummy_msg, dummy_msg, dummy_msg, dummy_msg, dummy_msg, dummy_msg];
+  const arb_chain_id = 10_004; // Arbitrum chain ID
+  const arb_chain_id_as_u8_31 = new Uint8Array(31);
 
-  console.log(`arb: ${arb_address} \nvault: ${vault_address}`);
+  // Convert number to 4-byte big-endian
+  arb_chain_id_as_u8_31.set([
+    (arb_chain_id >> 24) & 0xff,
+    (arb_chain_id >> 16) & 0xff,
+    (arb_chain_id >> 8) & 0xff,
+    arb_chain_id & 0xff,
+  ], 0);
+
+  let dummy_msg = new Uint8Array(31);
+  dummy_msg.fill(1);
+  let payload = [vault_address, arb_chain_id_as_u8_31];
+  for (let i = 2; i < 7; i++) {
+    payload.push(dummy_msg);
+  }
+
+  console.log(`vault: ${vault_address}`);
 
   console.log("Calling emitter verify and publish...") 
   
   const _tx = await contract.methods.verify_and_publish(
-    arb_address, vault_address, payload, wormhole_address, token.address,
-    ownerWallet.getAddress(), 1, token_nonce // must be consistent with authwit above
+    payload, wormhole_address, token.address, 1, token_nonce // must be consistent with authwit above
   ).send( { authWitnesses: [donationWitness] }).wait(); 
 
   const sampleLogFilter = {
