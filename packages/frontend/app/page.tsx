@@ -19,6 +19,7 @@ export default function Home() {
   const [txHash, setTxHash] = useState("")
   const [txStatus, setTxStatus] = useState("")
   const [arbitrumMessage, setArbitrumMessage] = useState<string | null>(null)
+  const [rawDataChunks, setRawDataChunks] = useState<string[]>([])
   const [isPolling, setIsPolling] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -62,6 +63,7 @@ export default function Home() {
     setTxHash("")
     setTxStatus("")
     setArbitrumMessage(null)
+    setRawDataChunks([])
     setIsPolling(false)
     setShowQRCode(true)
     setError("")
@@ -235,7 +237,7 @@ export default function Home() {
 
     let addressToCheck = uniqueIdentifier
     if (!addressToCheck || !addressToCheck.match(/^(0x)?[0-9a-fA-F]{40}$/)) {
-      addressToCheck = process.env.NEXT_PUBLIC_DEFAULT_ADDRESS || "0xd611F1AF9D056f00F49CB036759De2753EfA82c2"
+      addressToCheck = process.env.NEXT_PUBLIC_DEFAULT_ADDRESS || "0x83EE15DFDDD8b8AD56A73001Ca7A1627c7fe6716"
     }
 
     if (!addressToCheck.startsWith("0x")) {
@@ -263,8 +265,14 @@ export default function Home() {
           const data = await response.json()
           console.log("Polling response:", data)
 
-          if (data.success && (data.decodedMessage || data.message) && data.message !== "0x") {
-            setArbitrumMessage(data.decodedMessage || data.message)
+          if (data.success && data.message && data.message !== "0x") {
+            setArbitrumMessage(data.message)
+            
+            // Store raw data chunks if available
+            if (data.parsedData && data.parsedData.rawData) {
+              setRawDataChunks(data.parsedData.rawData)
+            }
+            
             setTxStatus("Arbitrum message received!")
             setIsPolling(false)
 
@@ -295,20 +303,6 @@ export default function Home() {
     }
     setIsPolling(false)
     setTxStatus((prevStatus) => `${prevStatus} - Polling stopped.`)
-  }
-
-  const formatMessage = (message: string | null): string => {
-    if (!message) return ""
-    if (typeof message === "string") {
-      if (message.startsWith("0x")) {
-        return "Message verified from blockchain"
-      }
-      return message
-    }
-    if (typeof message === "object" && message !== null) {
-      return (message as any).decodedMessage || "Message verified from blockchain"
-    }
-    return JSON.stringify(message)
   }
 
   return (
@@ -524,10 +518,96 @@ export default function Home() {
                 <h3 className="text-lg font-semibold text-green-900 mb-3">🌉 Cross-Chain Verification Complete</h3>
 
                 <div className="bg-white p-4 rounded-lg shadow-sm border border-green-100">
-                  <p className="text-base font-medium text-green-700 mb-1">{formatMessage(arbitrumMessage)}</p>
-                  <p className="text-sm text-green-600">
-                    ✅ Message successfully transmitted across blockchains using Wormhole protocol
-                  </p>
+                  {/* Parsed value */}
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm font-medium text-blue-800 mb-1">Parsed Amount Value:</p>
+                    {rawDataChunks.length > 0 && (
+                      <div className="space-y-3">
+                        {/* Parse as different integer sizes */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-white p-2 rounded-lg border border-blue-100">
+                            <span className="text-xs text-blue-600 font-medium block mb-1">as uint8 (1 byte):</span>
+                            <span className="text-lg font-bold text-blue-900">
+                              {parseInt(rawDataChunks[0].substring(0, 2), 16)}
+                            </span>
+                          </div>
+                          <div className="bg-white p-2 rounded-lg border border-blue-100">
+                            <span className="text-xs text-blue-600 font-medium block mb-1">as uint16 (2 bytes):</span>
+                            <span className="text-lg font-bold text-blue-900">
+                              {parseInt(rawDataChunks[0].substring(0, 4), 16)}
+                            </span>
+                          </div>
+                          <div className="bg-white p-2 rounded-lg border border-blue-100">
+                            <span className="text-xs text-blue-600 font-medium block mb-1">as uint32 (4 bytes):</span>
+                            <span className="text-lg font-bold text-blue-900">
+                              {parseInt(rawDataChunks[0].substring(0, 8), 16)}
+                            </span>
+                          </div>
+                          <div className="bg-white p-2 rounded-lg border border-blue-100">
+                            <span className="text-xs text-blue-600 font-medium block mb-1">as uint64 (8 bytes):</span>
+                            <span className="text-lg font-bold text-blue-900">
+                              {(() => {
+                                try {
+                                  return BigInt("0x" + rawDataChunks[0].substring(0, 16)).toString();
+                                } catch (e) {
+                                  return "Error parsing";
+                                }
+                              })()}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        {/* Full uint256 value */}
+                        <div className="bg-white p-2 rounded-lg border border-blue-100 mt-3">
+                          <span className="text-xs text-blue-600 font-medium block mb-1">as uint256 (full value):</span>
+                          <span className="text-sm font-mono text-blue-900 break-all">
+                            {(() => {
+                              try {
+                                return BigInt("0x" + rawDataChunks[0]).toString();
+                              } catch (e) {
+                                return "Error parsing full value";
+                              }
+                            })()}
+                          </span>
+                        </div>
+                        
+                        {/* Note about handling larger values */}
+                        <div className="text-xs text-gray-600 mt-2 bg-gray-50 p-2 rounded">
+                          <span className="font-medium">Note:</span> The contract may store the amount in various formats.
+                          The values above show different interpretations of the raw data as different sized integers.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Raw message display */}
+                  <div className="mb-4">
+                    <p className="text-sm font-medium text-gray-700 mb-1">Raw message (hex):</p>
+                    <p className="text-xs text-gray-600 font-mono break-all bg-gray-50 p-2 rounded">
+                      {arbitrumMessage}
+                    </p>
+                  </div>
+
+                  {/* Raw Data Chunks */}
+                  {rawDataChunks.length > 0 && (
+                    <div className="mt-4">
+                      <div className="font-medium text-gray-700 mb-2">Raw Data (32-byte chunks):</div>
+                      <div className="space-y-2">
+                        {rawDataChunks.map((chunk, index) => (
+                          <div key={index} className="bg-gray-50 p-2 rounded font-mono text-xs overflow-x-auto">
+                            <span className="text-gray-500 mr-2">Chunk {index}:</span>
+                            <span className="text-gray-900">{chunk}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="mt-3 pt-3 border-t border-green-100">
+                    <p className="text-sm text-green-600">
+                      ✅ Message successfully transmitted across blockchains using Wormhole protocol
+                    </p>
+                  </div>
                 </div>
               </div>
             )}

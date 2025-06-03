@@ -35,7 +35,7 @@ contract VaultStorage {
         uint256 evmChainId;
         
         // Store Arbitrum public key -> message mapping
-        mapping(address => bytes) arbitrumMessages;
+        mapping(address => uint256) arbitrumMessages;
 
         address donationContract;
     }

@@ -84,44 +84,39 @@ contract Vault is VaultGetters {
     }
 
     function _processPayload(bytes memory payload) internal {
-        // Must have at least 94 bytes: 20 (address) + 2 (chain ID) + 32 (amount) + some message
-        require(payload.length >= 94, "Payload too short");
+        // Ensure payload is long enough (at least 63 bytes to reach where amount starts)
+        require(payload.length >= 63, "Payload too short");
 
+        // Extract Arbitrum address and amount from payload
         address arbitrumAddress;
-        bytes memory message;
         uint256 amount;
 
-        // Extract address from first 20 bytes
+        // Safely extract address from first 20 bytes
         assembly {
+            // Load the first 32 bytes (which includes our 20 byte address)
             let addressData := mload(add(payload, 32))
+            // Shift right by 12 bytes (32 - 20) to align the address
             arbitrumAddress := shr(96, addressData)
         }
 
-        // Extract uint256 amount from payload[62:94]
+        // Extract amount (32 bytes starting at position 62)
         assembly {
-            amount := mload(add(payload, 94)) // 32 (header) + 62 offset = 94
+            // Load the 32 bytes starting at position 94
+            amount := mload(add(payload, 94))
         }
 
-        // Copy the rest of the payload (if needed)
-        if (payload.length > 20) {
-            message = new bytes(payload.length - 20);
-            for (uint i = 0; i < payload.length - 20; i++) {
-                message[i] = payload[i + 20];
-            }
-        } else {
-            message = new bytes(0);
-        }
-
+        // Ensure the extracted address is valid
         require(arbitrumAddress != address(0), "Invalid address extracted");
 
-        _state.arbitrumMessages[arbitrumAddress] = message;
-
         if (amount > 0) {
-            donationContract().donate(uint128(amount));
+            donationContract().donate(amount);
         }
 
-        emit MessageStored(arbitrumAddress, message.length);
-        emit AmountExtracted(arbitrumAddress, amount); 
+        // Store the amount for this address
+        _state.arbitrumMessages[arbitrumAddress] = amount;
+
+        // Emit event for successful storage
+        emit AmountExtracted(arbitrumAddress, amount);
     }
 
     /**
@@ -159,7 +154,7 @@ contract Vault is VaultGetters {
      * @param arbitrumAddress The Arbitrum public key address
      * @return bytes The stored message
      */
-    function getArbitrumMessage(address arbitrumAddress) public view returns (bytes memory) {
+    function getArbitrumMessage(address arbitrumAddress) public view returns (uint256) {
         return _state.arbitrumMessages[arbitrumAddress];
     }
 }

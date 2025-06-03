@@ -180,14 +180,14 @@ async function main() {
   console.log(`Using emitter at ${emitterAddress.toString()}`);
 
   // EXISTING WORMHOLE AND TOKEN CONTRACT ADDRESSES
-  const wormhole_address = AztecAddress.fromString("0x2bad1647bcc984833b3eca33a9753f1878a8d81ee8e40ad2e60dd7bbc0840770");
-  const token_address = "0x0032b802142cb4f87460882d5ccc2f78a2daabe7a807a8ae214cbb590e3000c3";
+  const wormhole_address = AztecAddress.fromString("0x11b7dae0d5a563543c1f458c5e33f36e2d6c9e6b44a90890093ae08912c7f780");
+  const token_address = "0x01c3a72c10df12b3d148b4e4893d61a1f8afa646ca27f9d5d4bcd28aa7496207";
 
   console.log("Getting token contract...");
   const token = await TokenContract.at(token_address, ownerWallet);
 
   // Use a new nonce
-  const token_nonce = 76n;
+  const token_nonce = 256n;
   console.log(`Using token nonce: ${token_nonce}`);
   
   // First, set up the public auth witness for the Wormhole contract
@@ -214,7 +214,7 @@ async function main() {
   const donationAction = token.methods.transfer_in_private(
     ownerWallet.getAddress(),
     receiverWallet.getAddress(),
-    6n,
+    55n,
     token_nonce 
   );
   console.log("Generating private authwit for donation...");
@@ -226,9 +226,9 @@ async function main() {
 
   console.log("Getting emitter contract...");
   const contract = await Contract.at(emitterAddress, EmitterContractArtifact, ownerWallet);
-
+  
   // The vault address we want to appear in the logs
-  const targetVaultAddress = "0xd611F1AF9D056f00F49CB036759De2753EfA82c2";
+  const targetVaultAddress = "0x83EE15DFDDD8b8AD56A73001Ca7A1627c7fe6716";
   console.log(`Target vault address: ${targetVaultAddress}`);
   
   // Create arbitrum address and vault address - these are passed directly to the contract
@@ -255,7 +255,7 @@ async function main() {
       msgArrays,            // Message arrays (5 arrays of 31 bytes each)
       wormhole_address,     // Wormhole contract address
       token_address,        // Token contract address
-      6n,                   // Amount
+      55n,                   // Amount
       token_nonce           // Token nonce
     ).send({ authWitnesses: [donationWitness] }).wait();
 

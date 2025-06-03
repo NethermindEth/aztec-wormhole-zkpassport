@@ -18,7 +18,7 @@ const { PXE_URL = 'http://localhost:8090' } = process.env;
 // then deploy a wormhole instance 
 // then run this script with ``` node deploy.mjs ```
 
-async function mintTokensToPublic(
+export async function mintTokensToPublic(
   token, // TokenContract
   minterWallet, 
   recipient,
@@ -31,7 +31,7 @@ async function mintTokensToPublic(
     .wait();
 }
 
-async function mintTokensToPrivate(
+export async function mintTokensToPrivate(
   token, // TokenContract
   minterWallet, 
   recipient,
@@ -57,8 +57,8 @@ async function main() {
   console.log(`Receiver address: ${receiverWallet.getAddress()}`);
 
   // EXISTING WORMHOLE AND TOKEN CONTRACT ADDRESSES
-  const wormhole_address = AztecAddress.fromString("0x2bad1647bcc984833b3eca33a9753f1878a8d81ee8e40ad2e60dd7bbc0840770");
-  const token_address = "0x0032b802142cb4f87460882d5ccc2f78a2daabe7a807a8ae214cbb590e3000c3";
+  const wormhole_address = AztecAddress.fromString("0x11b7dae0d5a563543c1f458c5e33f36e2d6c9e6b44a90890093ae08912c7f780");
+  const token_address = "0x01c3a72c10df12b3d148b4e4893d61a1f8afa646ca27f9d5d4bcd28aa7496207";
 
   const emitter = await Contract.deploy(ownerWallet, EmitterContractArtifact, [AztecAddress.fromString(token_address)])
       .send()
@@ -75,7 +75,7 @@ async function main() {
     token,
     ownerWallet,
     emitter.address,
-    1000n
+    10000n
   );
 
   console.log(`Minting tokens to private for owner...`);
@@ -83,10 +83,10 @@ async function main() {
     token,
     ownerWallet,
     ownerAddress,
-    100n
+    10000n
   );
 
-  const token_nonce = 33n;
+  const token_nonce = 50n;
   
   const tokenTransferAction = token.methods.transfer_in_public(
     ownerAddress, 

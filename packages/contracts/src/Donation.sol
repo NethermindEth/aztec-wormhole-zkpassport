@@ -16,7 +16,7 @@ forge create src/Donation.sol:Donation --rpc-url 127.0.0.1:8545 \
 contract Donation is BridgeToken {
     address public receiver;
 
-    event DonationMade(address donor, uint128 amount);
+    event DonationMade(address donor, uint256 amount);
 
     /**
      * @notice Constructor to set the receiver address
@@ -30,7 +30,7 @@ contract Donation is BridgeToken {
      * @notice Donate tokens to the receiver
      * @param amount Amount of tokens to donate (in wei units)
      */
-    function donate(uint128 amount) external onlyOwner {
+    function donate(uint256 amount) external {
         require(amount > 0, "Donation amount must be greater than zero");
 
         _mint(receiver, amount);
