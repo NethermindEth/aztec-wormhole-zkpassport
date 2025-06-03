@@ -17,13 +17,15 @@ contract VaultGetters is VaultState {
      * @param chainId_ Chain ID for this vault
      * @param evmChainId_ EVM Chain ID
      * @param finality_ Number of confirmations required for finality
+     * @param donationContractAddr Address of the donation contract
      */
     constructor(
         address payable wormholeAddr,
         uint16 chainId_,
         uint256 evmChainId_,
-        uint8 finality_
-    ) VaultState(wormholeAddr, chainId_, evmChainId_, finality_) {}
+        uint8 finality_,
+        address donationContractAddr
+    ) VaultState(wormholeAddr, chainId_, evmChainId_, finality_, donationContractAddr) {}
 
     /**
      * @dev Checks if a contract implementation has been initialized
@@ -82,4 +84,9 @@ contract VaultGetters is VaultState {
     function finality() public view returns (uint8) {
         return _state.provider.finality;
     }
+
+    function donationContract() public view returns (IDonation) {
+        return IDonation(_state.donationContract);
+    }
+
 }

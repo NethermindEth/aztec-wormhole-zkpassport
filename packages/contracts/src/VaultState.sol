@@ -4,12 +4,15 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "../Interfaces/IDonation.sol";
 
 /**
  * @title VaultStorage
  * @dev Defines the core storage structure for the Vault contract system
  */
 contract VaultStorage {
+    address donationContract;
+
     struct Provider {
         uint16 chainId;
         uint16 governanceChainId;
@@ -33,6 +36,8 @@ contract VaultStorage {
         
         // Store Arbitrum public key -> message mapping
         mapping(address => bytes) arbitrumMessages;
+
+        address donationContract;
     }
 }
 
@@ -50,26 +55,30 @@ contract VaultState {
      * @param chainId_ Chain ID for this vault
      * @param evmChainId_ EVM Chain ID
      * @param finality_ Number of confirmations required for finality
+     * @param donationContractAddr Address of the donation contract
      */
     constructor(
         address wormholeAddr,
         uint16 chainId_,
         uint256 evmChainId_,
-        uint8 finality_
+        uint8 finality_,
+        address donationContractAddr
     ) {
         require(wormholeAddr != address(0), "Wormhole address cannot be zero");
+        require(donationContractAddr != address(0), "Donation contract address cannot be zero");
         require(finality_ > 0, "Finality must be greater than zero");
-        
+
         _state.wormhole = wormholeAddr;
         _state.provider.chainId = chainId_;
         _state.evmChainId = evmChainId_;
         _state.provider.finality = finality_;
         _state.initializedImplementations[address(this)] = true;
-        
-        // Initialize optional governance fields
+
         _state.provider.governanceChainId = 0;
         _state.provider.governanceContract = bytes32(0);
-        
+
+        _state.donationContract = donationContractAddr;
+
         _owner = msg.sender;
     }
 

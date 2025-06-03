@@ -27,6 +27,13 @@ contract Vault is VaultGetters {
      */
     event MessageStored(address indexed arbitrumAddress, uint256 messageLength);
 
+    /**
+     * @dev Event emitted when a message is processed and stored
+     * @param arbitrumAddress The Arbitrum address extracted from the payload
+     * @param amount The amount extracted from the payload
+     */
+    event AmountExtracted(address indexed arbitrumAddress, uint256 amount);
+
     // No debugging events needed
 
     /**
@@ -35,13 +42,15 @@ contract Vault is VaultGetters {
      * @param chainId_ Chain ID for this vault
      * @param evmChainId_ EVM Chain ID
      * @param finality_ Number of confirmations required for finality
+     * @param donationContractAddr Address of the donation contract
      */
     constructor(
         address payable wormholeAddr,
         uint16 chainId_,
         uint256 evmChainId_,
-        uint8 finality_
-    ) VaultGetters(wormholeAddr, chainId_, evmChainId_, finality_) {}
+        uint8 finality_,
+        address donationContractAddr
+    ) VaultGetters(wormholeAddr, chainId_, evmChainId_, finality_, donationContractAddr) {}
 
     /**
      * @notice Verifies a VAA (Verified Action Approval) and stores extracted data
@@ -74,27 +83,26 @@ contract Vault is VaultGetters {
         return vm.payload;
     }
 
-    /**
-     * @dev Processes the verified payload by extracting and storing data
-     * @param payload The verified VAA payload
-     */
     function _processPayload(bytes memory payload) internal {
-        // Ensure payload is long enough
-        require(payload.length >= 20, "Payload too short");
-        
-        // Extract Arbitrum address and message from payload
+        // Must have at least 94 bytes: 20 (address) + 2 (chain ID) + 32 (amount) + some message
+        require(payload.length >= 94, "Payload too short");
+
         address arbitrumAddress;
         bytes memory message;
-        
-        // Safely extract address from first 20 bytes
+        uint256 amount;
+
+        // Extract address from first 20 bytes
         assembly {
-            // Load the first 32 bytes (which includes our 20 byte address)
             let addressData := mload(add(payload, 32))
-            // Shift right by 12 bytes (32 - 20) to align the address
             arbitrumAddress := shr(96, addressData)
         }
-        
-        // Create message from remaining bytes
+
+        // Extract uint256 amount from payload[62:94]
+        assembly {
+            amount := mload(add(payload, 94)) // 32 (header) + 62 offset = 94
+        }
+
+        // Copy the rest of the payload (if needed)
         if (payload.length > 20) {
             message = new bytes(payload.length - 20);
             for (uint i = 0; i < payload.length - 20; i++) {
@@ -103,15 +111,17 @@ contract Vault is VaultGetters {
         } else {
             message = new bytes(0);
         }
-        
-        // Ensure the extracted address is valid
+
         require(arbitrumAddress != address(0), "Invalid address extracted");
-        
-        // Store the message
+
         _state.arbitrumMessages[arbitrumAddress] = message;
-        
-        // Emit event for successful storage
+
+        if (amount > 0) {
+            donationContract().donate(uint128(amount));
+        }
+
         emit MessageStored(arbitrumAddress, message.length);
+        emit AmountExtracted(arbitrumAddress, amount); 
     }
 
     /**
