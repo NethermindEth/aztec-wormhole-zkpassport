@@ -14,33 +14,52 @@ pub contract ZKPassportCredentialEmitter {
     use dep::token::Token;
 
     #[derive(Deserialize, Serialize)]
-    pub struct Proofs {
-        // Verification Keys
-        pub vkey_a: [Field; 128],
-        pub vkey_b: [Field; 128],
-        pub vkey_c: [Field; 128],
-        pub vkey_d: [Field; 128],
-        pub vkey_e: [Field; 128],
-        pub vkey_f: [Field; 128],
-        // Proofs
-        pub proof_a: [Field; 456],
-        pub proof_b: [Field; 456],
-        pub proof_c: [Field; 456],
-        pub proof_d: [Field; 456],
-        pub proof_e: [Field; 456],
-        pub proof_f: [Field; 456],
-        // Public Inputs
-        pub pub_input_a: [Field; 2],
-        pub pub_input_b: [Field; 2],
-        pub pub_input_c: [Field; 10],
-        pub pub_input_d: [Field; 5],
-        pub pub_input_e: [Field; 5],
-        pub pub_input_f: [Field; 5],
+    pub struct ContractProofData {
+        vkeys: vkeys,
+        proofs: proofs,
+        vkey_hashes: vkey_hashes,
+        pub_inputs: pub_inputs,
+    }
+
+    struct vkeys {
+        vkey_a: [Field; 128],
+        vkey_b: [Field; 128],
+        vkey_c: [Field; 128],
+        vkey_d: [Field; 128],
+        vkey_e: [Field; 128],
+        vkey_f: [Field; 128],
+    }
+
+    struct proofs {
+        proof_a: [Field; 456],
+        proof_b: [Field; 456],
+        proof_c: [Field; 456],
+        proof_d: [Field; 456],
+        proof_e: [Field; 456],
+        proof_f: [Field; 456],
+    }
+
+    struct pub_inputs {
+        pub_input_a: [Field; 2],
+        pub_input_b: [Field; 2],
+        pub_input_c: [Field; 10],
+        pub_input_d: [Field; 5],
+        pub_input_e: [Field; 5],
+        pub_input_f: [Field; 5],
+    }
+
+    struct vkey_hashes {
+        vkey_hash_a: Field,
+        vkey_hash_b: Field,
+        vkey_hash_c: Field,
+        vkey_hash_d: Field,
+        vkey_hash_e: Field,
+        vkey_hash_f: Field,
     }
 
     #[private]
     pub fn verify_and_publish(
-        proofs: Proofs,
+        proofs: ContractProofData,
         msg: [[u8;31];7], // Format: [zkDonation Arb Address, Arb chain ID, msg1, msg2, msg3, msg4, msg5]
         wormhole_address: AztecAddress,
         token_address: AztecAddress, // address of the token to be donated
@@ -50,52 +69,52 @@ pub contract ZKPassportCredentialEmitter {
         // 1. verify zk passport proofs
         // proof a,b has 2 public inputs
         std::verify_proof_with_type(
-            proofs.vkey_a,
-            proofs.proof_a,
-            proofs.pub_input_a,
-            0 as Field,
+            proofs.vkeys.vkey_a,
+            proofs.proofs.proof_a,
+            proofs.pub_inputs.pub_input_a,
+            proofs.vkey_hashes.vkey_hash_a,
             1
         );
 
         std::verify_proof_with_type(
-            proofs.vkey_b,
-            proofs.proof_b,
-            proofs.pub_input_b,
-            0 as Field,
+            proofs.vkeys.vkey_b,
+            proofs.proofs.proof_b,
+            proofs.pub_inputs.pub_input_b,
+            proofs.vkey_hashes.vkey_hash_b,
             1
         );
 
         // proof c has 10 public inputs
         std::verify_proof_with_type(
-            proofs.vkey_c,
-            proofs.proof_c,
-            proofs.pub_input_c,
-            0 as Field,
+            proofs.vkeys.vkey_c,
+            proofs.proofs.proof_c,
+            proofs.pub_inputs.pub_input_c,
+            proofs.vkey_hashes.vkey_hash_c,
             1
         );
 
         // proof d,e,f have 5 public inputs
         std::verify_proof_with_type(
-            proofs.vkey_d,
-            proofs.proof_d,
-            proofs.pub_input_d,
-            0 as Field,
+            proofs.vkeys.vkey_d,
+            proofs.proofs.proof_d,
+            proofs.pub_inputs.pub_input_d,
+            proofs.vkey_hashes.vkey_hash_d,
             1
         );
 
         std::verify_proof_with_type(
-            proofs.vkey_e,
-            proofs.proof_e,
-            proofs.pub_input_e,
-            0 as Field,
+            proofs.vkeys.vkey_e,
+            proofs.proofs.proof_e,
+            proofs.pub_inputs.pub_input_e,
+            proofs.vkey_hashes.vkey_hash_e,
             1
         );
 
         std::verify_proof_with_type(
-            proofs.vkey_f,
-            proofs.proof_f,
-            proofs.pub_input_f,
-            0 as Field,
+            proofs.vkeys.vkey_f,
+            proofs.proofs.proof_f,
+            proofs.pub_inputs.pub_input_f,
+            proofs.vkey_hashes.vkey_hash_f,
             1
         );
 
