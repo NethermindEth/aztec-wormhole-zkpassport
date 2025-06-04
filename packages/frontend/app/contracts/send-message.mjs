@@ -187,7 +187,7 @@ async function main() {
   const token = await TokenContract.at(token_address, ownerWallet);
 
   // Use a new nonce
-  const token_nonce = 256n;
+  const token_nonce = 278n;
   console.log(`Using token nonce: ${token_nonce}`);
   
   // First, set up the public auth witness for the Wormhole contract
@@ -214,7 +214,7 @@ async function main() {
   const donationAction = token.methods.transfer_in_private(
     ownerWallet.getAddress(),
     receiverWallet.getAddress(),
-    55n,
+    23n,
     token_nonce 
   );
   console.log("Generating private authwit for donation...");
@@ -228,7 +228,7 @@ async function main() {
   const contract = await Contract.at(emitterAddress, EmitterContractArtifact, ownerWallet);
   
   // The vault address we want to appear in the logs
-  const targetVaultAddress = "0x83EE15DFDDD8b8AD56A73001Ca7A1627c7fe6716";
+  const targetVaultAddress = "0xC045C7B6B976d24728872d2117073c893d0B09C2";
   console.log(`Target vault address: ${targetVaultAddress}`);
   
   // Create arbitrum address and vault address - these are passed directly to the contract
@@ -255,7 +255,7 @@ async function main() {
       msgArrays,            // Message arrays (5 arrays of 31 bytes each)
       wormhole_address,     // Wormhole contract address
       token_address,        // Token contract address
-      55n,                   // Amount
+      23n,                   // Amount
       token_nonce           // Token nonce
     ).send({ authWitnesses: [donationWitness] }).wait();
 
