@@ -18,7 +18,7 @@ pub contract ZKPassportCredentialEmitter {
         vkeys: vkeys,
         proofs: proofs,
         vkey_hashes: vkey_hashes,
-        pub_inputs: pub_inputs,
+        public_inputs: public_inputs,
     }
 
     struct vkeys {
@@ -39,13 +39,13 @@ pub contract ZKPassportCredentialEmitter {
         proof_f: [Field; 456],
     }
 
-    struct pub_inputs {
-        pub_input_a: [Field; 2],
-        pub_input_b: [Field; 2],
-        pub_input_c: [Field; 10],
-        pub_input_d: [Field; 5],
-        pub_input_e: [Field; 5],
-        pub_input_f: [Field; 5],
+    struct public_inputs {
+        input_a: [Field; 2],
+        input_b: [Field; 2],
+        input_c: [Field; 10],
+        input_d: [Field; 5],
+        input_e: [Field; 5],
+        input_f: [Field; 5],
     }
 
     struct vkey_hashes {
@@ -59,7 +59,7 @@ pub contract ZKPassportCredentialEmitter {
 
     #[private]
     pub fn verify_and_publish(
-        proofs: ContractProofData,
+        contractProofData: ContractProofData,
         msg: [[u8;31];7], // Format: [zkDonation Arb Address, Arb chain ID, msg1, msg2, msg3, msg4, msg5]
         wormhole_address: AztecAddress,
         token_address: AztecAddress, // address of the token to be donated
@@ -69,52 +69,52 @@ pub contract ZKPassportCredentialEmitter {
         // 1. verify zk passport proofs
         // proof a,b has 2 public inputs
         std::verify_proof_with_type(
-            proofs.vkeys.vkey_a,
-            proofs.proofs.proof_a,
-            proofs.pub_inputs.pub_input_a,
-            proofs.vkey_hashes.vkey_hash_a,
+            contractProofData.vkeys.vkey_a,
+            contractProofData.proofs.proof_a,
+            contractProofData.public_inputs.input_a,
+            contractProofData.vkey_hashes.vkey_hash_a,
             1
         );
 
         std::verify_proof_with_type(
-            proofs.vkeys.vkey_b,
-            proofs.proofs.proof_b,
-            proofs.pub_inputs.pub_input_b,
-            proofs.vkey_hashes.vkey_hash_b,
+            contractProofData.vkeys.vkey_b,
+            contractProofData.proofs.proof_b,
+            contractProofData.public_inputs.input_b,
+            contractProofData.vkey_hashes.vkey_hash_b,
             1
         );
 
         // proof c has 10 public inputs
         std::verify_proof_with_type(
-            proofs.vkeys.vkey_c,
-            proofs.proofs.proof_c,
-            proofs.pub_inputs.pub_input_c,
-            proofs.vkey_hashes.vkey_hash_c,
+            contractProofData.vkeys.vkey_c,
+            contractProofData.proofs.proof_c,
+            contractProofData.public_inputs.input_c,
+            contractProofData.vkey_hashes.vkey_hash_c,
             1
         );
 
         // proof d,e,f have 5 public inputs
         std::verify_proof_with_type(
-            proofs.vkeys.vkey_d,
-            proofs.proofs.proof_d,
-            proofs.pub_inputs.pub_input_d,
-            proofs.vkey_hashes.vkey_hash_d,
+            contractProofData.vkeys.vkey_d,
+            contractProofData.proofs.proof_d,
+            contractProofData.public_inputs.input_d,
+            contractProofData.vkey_hashes.vkey_hash_d,
             1
         );
 
         std::verify_proof_with_type(
-            proofs.vkeys.vkey_e,
-            proofs.proofs.proof_e,
-            proofs.pub_inputs.pub_input_e,
-            proofs.vkey_hashes.vkey_hash_e,
+            contractProofData.vkeys.vkey_e,
+            contractProofData.proofs.proof_e,
+            contractProofData.public_inputs.input_e,
+            contractProofData.vkey_hashes.vkey_hash_e,
             1
         );
 
         std::verify_proof_with_type(
-            proofs.vkeys.vkey_f,
-            proofs.proofs.proof_f,
-            proofs.pub_inputs.pub_input_f,
-            proofs.vkey_hashes.vkey_hash_f,
+            contractProofData.vkeys.vkey_f,
+            contractProofData.proofs.proof_f,
+            contractProofData.public_inputs.input_f,
+            contractProofData.vkey_hashes.vkey_hash_f,
             1
         );
 

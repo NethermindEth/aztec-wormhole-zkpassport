@@ -16,7 +16,7 @@ contract DeployVault is Script {
         uint8 finality = 2; 
         
         // Emitter registration info
-        bytes32 emitterAddress = hex"036f76ac3a1fc0034310960df7f70bef7b7e10a647dbf870716b307f50aa9d28";
+        bytes32 emitterAddress = hex"1750202881afaf3623cce3bec492598d4020e2df6abc8753b36e88aecdf4d7f4";
         uint16 emitterChainId = 52; // Source chain ID
 
         vm.startBroadcast();
