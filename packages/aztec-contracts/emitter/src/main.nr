@@ -20,62 +20,84 @@ pub contract ZKPassportCredentialEmitter {
         pub vkey_b: [Field; 128],
         pub vkey_c: [Field; 128],
         pub vkey_d: [Field; 128],
+        pub vkey_e: [Field; 128],
+        pub vkey_f: [Field; 128],
         // Proofs
         pub proof_a: [Field; 456],
         pub proof_b: [Field; 456],
         pub proof_c: [Field; 456],
         pub proof_d: [Field; 456],
+        pub proof_e: [Field; 456],
+        pub proof_f: [Field; 456],
         // Public Inputs
         pub pub_input_a: [Field; 2],
-        pub pub_input_b: [Field; 5],
-        pub pub_input_c: [Field; 5],
-        pub pub_input_d: [Field; 2],
+        pub pub_input_b: [Field; 2],
+        pub pub_input_c: [Field; 10],
+        pub pub_input_d: [Field; 5],
+        pub pub_input_e: [Field; 5],
+        pub pub_input_f: [Field; 5],
     }
 
     #[private]
     pub fn verify_and_publish(
-        // proofs: Proofs,
+        proofs: Proofs,
         msg: [[u8;31];7], // Format: [zkDonation Arb Address, Arb chain ID, msg1, msg2, msg3, msg4, msg5]
         wormhole_address: AztecAddress,
         token_address: AztecAddress, // address of the token to be donated
         amount: u128, // amount of tokens to be donated on chosen chainID
         nonce: Field
     ) {
-        // // 1. verify zk passport proofs
-        // // proof a has 2 public inputs
-        // std::verify_proof_with_type(
-        //     proofs.vkey_a,
-        //     proofs.proof_a,
-        //     proofs.pub_input_a,
-        //     0 as Field,
-        //     1
-        // );
+        // 1. verify zk passport proofs
+        // proof a,b has 2 public inputs
+        std::verify_proof_with_type(
+            proofs.vkey_a,
+            proofs.proof_a,
+            proofs.pub_input_a,
+            0 as Field,
+            1
+        );
 
-        // // proof b,c have 5 public inputs
-        // std::verify_proof_with_type(
-        //     proofs.vkey_b,
-        //     proofs.proof_b,
-        //     proofs.pub_input_b,
-        //     0 as Field,
-        //     1
-        // );
+        std::verify_proof_with_type(
+            proofs.vkey_b,
+            proofs.proof_b,
+            proofs.pub_input_b,
+            0 as Field,
+            1
+        );
 
-        // std::verify_proof_with_type(
-        //     proofs.vkey_c,
-        //     proofs.proof_c,
-        //     proofs.pub_input_c,
-        //     0 as Field,
-        //     1
-        // );
+        // proof c has 10 public inputs
+        std::verify_proof_with_type(
+            proofs.vkey_c,
+            proofs.proof_c,
+            proofs.pub_input_c,
+            0 as Field,
+            1
+        );
 
-        // // proof d has 2 public inputs
-        // std::verify_proof_with_type(
-        //     proofs.vkey_d,
-        //     proofs.proof_d,
-        //     proofs.pub_input_d,
-        //     0 as Field,
-        //     1
-        // );
+        // proof d,e,f have 5 public inputs
+        std::verify_proof_with_type(
+            proofs.vkey_d,
+            proofs.proof_d,
+            proofs.pub_input_d,
+            0 as Field,
+            1
+        );
+
+        std::verify_proof_with_type(
+            proofs.vkey_e,
+            proofs.proof_e,
+            proofs.pub_input_e,
+            0 as Field,
+            1
+        );
+
+        std::verify_proof_with_type(
+            proofs.vkey_f,
+            proofs.proof_f,
+            proofs.pub_input_f,
+            0 as Field,
+            1
+        );
 
         let bridge_address = AztecAddress {
             inner: 0x1f41267c06dae96c9c3906c5f77cbc28602cc70d6d7e9d2c3072cb0a5b13edd2 // This is a placeholder, replace with actual bridge address
