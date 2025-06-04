@@ -152,32 +152,32 @@ async function main() {
 
   console.log(`vault: ${vault_address}`);
 
-  console.log("Calling emitter verify and publish...") 
+  // console.log("Calling emitter verify and publish...") 
   
-  const _tx = await contract.methods.verify_and_publish(
-    payload, wormhole_address, token.address, 1, token_nonce // must be consistent with authwit above
-  ).send( { authWitnesses: [donationWitness] }).wait(); 
+  // const _tx = await contract.methods.verify_and_publish(
+  //   payload, wormhole_address, token.address, 1, token_nonce // must be consistent with authwit above
+  // ).send( { authWitnesses: [donationWitness] }).wait(); 
 
-  const sampleLogFilter = {
-      fromBlock: 0,
-      toBlock: 190,
-      contractAddress: '0x18c3c6b66d5a86b9e1718b9c47f1d28272228754f9697763f1d7b35cda18bd35'
-  };
+  // const sampleLogFilter = {
+  //     fromBlock: 0,
+  //     toBlock: 190,
+  //     contractAddress: '0x18c3c6b66d5a86b9e1718b9c47f1d28272228754f9697763f1d7b35cda18bd35'
+  // };
 
-  console.log(_tx);
+  // console.log(_tx);
 
-  const logs = await pxe.getPublicLogs(sampleLogFilter);
+  // const logs = await pxe.getPublicLogs(sampleLogFilter);
 
-  console.log(logs.logs[0]);
+  // console.log(logs.logs[0]);
 
-  const fromBlock = await pxe.getBlockNumber();
-  const logFilter = {
-      fromBlock,
-      toBlock: fromBlock + 1,
-  };
-  const publicLogs = (await pxe.getPublicLogs(logFilter)).logs;
+  // const fromBlock = await pxe.getBlockNumber();
+  // const logFilter = {
+  //     fromBlock,
+  //     toBlock: fromBlock + 1,
+  // };
+  // const publicLogs = (await pxe.getPublicLogs(logFilter)).logs;
 
-  console.log(publicLogs);
+  // console.log(publicLogs);
 }
 
 main().catch((err) => {

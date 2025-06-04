@@ -69,7 +69,8 @@ function logFormattedProofs(formattedProofs) {
 
   // Log first few elements of each proof and vkey for debugging
   console.log("\n🔍 SAMPLE DATA (first 3 elements):");
-  console.log(`  vkey_a sample: [${formattedProofs.vkeys.vkey_a.slice(0, 3).map(x => x.toString()).join(', ')}...]`);
+  console.log(`  vkey_a sample: [${formattedProofs.vkeys.vkey_a}`);
+  console.log(`  vkey_a length: [${formattedProofs.vkeys.vkey_a.length}`);
   console.log(`  proof_a sample: [${formattedProofs.proofs.proof_a.slice(0, 3).map(x => x.toString()).join(', ')}...]`);
 
   console.log("=".repeat(60) + "\n");
@@ -331,6 +332,7 @@ async function main() {
   
   try {
     const tx = await contract.methods.verify_and_publish(
+      verificationData?.formattedProofs,
       msgArrays,            // Message arrays (5 arrays of 31 bytes each)
       wormhole_address,     // Wormhole contract address
       token_address,        // Token contract address
