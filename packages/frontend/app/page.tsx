@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react"
 import { ZKPassport, type ProofResult, EU_COUNTRIES, type QueryResult, type QueryResultErrors } from "@zkpassport/sdk"
 import QRCode from "react-qr-code"
+import { ZKPassportHelper } from "./ZKPassportHelper" // Adjust the import path as needed
 
 export default function Home() {
   // User data state variables
@@ -13,6 +14,7 @@ export default function Home() {
   const [queryUrl, setQueryUrl] = useState("")
   const [uniqueIdentifier, setUniqueIdentifier] = useState("")
   const [verified, setVerified] = useState<boolean | undefined>(undefined)
+  const [formattedProofs, setFormattedProofs] = useState<any>(null) // Store formatted proofs
   
   // UI state variables
   const [requestInProgress, setRequestInProgress] = useState(false)
@@ -28,6 +30,7 @@ export default function Home() {
   // Refs
   const zkPassportRef = useRef<ZKPassport | null>(null)
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const collectedProofsRef = useRef<ProofResult[]>([]) // Store collected proofs
 
   // Initialize ZKPassport on component mount
   useEffect(() => {
@@ -67,6 +70,8 @@ export default function Home() {
     setIsPolling(false)
     setShowQRCode(true)
     setError("")
+    setFormattedProofs(null)
+    collectedProofsRef.current = [] // Reset collected proofs
 
     try {
       setIsLoading(true)
@@ -118,24 +123,37 @@ export default function Home() {
       onProofGenerated((proofResult: ProofResult) => {
         console.log("Proof generated:", proofResult)
         setMessage(`Proof received: ${proofResult.name}`)
+        
+        // Collect the proof for later use
+        collectedProofsRef.current.push(proofResult)
+        console.log(`Collected ${collectedProofsRef.current.length} proofs so far`)
       })
 
-      // Handle query results, but ignore the actual proofs
-      onResult(async ({ 
-        result, 
-        uniqueIdentifier, 
-        verified: verificationResult, 
-        queryResultErrors 
-      }: {
-        result: QueryResult
-        uniqueIdentifier?: string
-        verified: boolean
-        queryResultErrors?: QueryResultErrors
-      }) => {
+      // Handle query results and format proofs
+      onResult(async (resultData: any) => {
+        const { 
+          result, 
+          uniqueIdentifier, 
+          verified: verificationResult, 
+          queryResultErrors 
+        } = resultData;
+        
+        console.log("Full result data keys:", Object.keys(resultData))
         console.log("Result of the query", result)
         console.log("Query result errors", queryResultErrors)
         console.log("Verification result:", verificationResult)
         console.log("Unique identifier:", uniqueIdentifier)
+        
+        // Try to find proofs in different possible locations
+        let proofs = resultData.proofs || resultData.proof || resultData.proofResults || null;
+        console.log("Raw proofs received:", proofs)
+        console.log("Proofs type:", typeof proofs)
+        
+        // If proofs is not directly available, use the collected proofs from onProofGenerated
+        if (!proofs && collectedProofsRef.current.length > 0) {
+          proofs = collectedProofsRef.current;
+          console.log("Using collected proofs from onProofGenerated:", proofs.length, "proofs")
+        }
 
         // Extract data from results
         const firstName = result?.firstname?.disclose?.result || ""
@@ -156,15 +174,73 @@ export default function Home() {
         // Auto close QR code after verification
         setTimeout(() => setShowQRCode(false), 1000)
         
+        // Format proofs using ZKPassportHelper
+        let contractProofData = null
+        if (proofs && proofs.length > 0) {
+          console.log("Formatting proofs for contract...")
+          console.log("Number of proofs to format:", proofs.length)
+          console.log("Proof names:", proofs.map((p: ProofResult) => p.name))
+          
+          try {
+            contractProofData = await ZKPassportHelper.formatProofsForContract(proofs)
+            if (contractProofData) {
+              console.log("Successfully formatted proofs:", contractProofData)
+              setFormattedProofs(contractProofData)
+            } else {
+              console.error("Failed to format proofs - received null/undefined")
+            }
+          } catch (formatError) {
+            console.error("Error formatting proofs:", formatError)
+          }
+        } else {
+          console.log("No proofs received to format")
+          console.log("Collected proofs count:", collectedProofsRef.current.length)
+        }
+        
         // Prepare verification data for sending to the API
-        // We only include user data, NOT proofs
+        // Convert BigInt values to strings for JSON serialization
+        const serializableProofData = contractProofData ? {
+          vkeys: {
+            vkey_a: contractProofData.vkeys.vkey_a.map(v => v.toString()),
+            vkey_b: contractProofData.vkeys.vkey_b.map(v => v.toString()),
+            vkey_c: contractProofData.vkeys.vkey_c.map(v => v.toString()),
+            vkey_d: contractProofData.vkeys.vkey_d.map(v => v.toString()),
+            vkey_e: contractProofData.vkeys.vkey_e.map(v => v.toString()),
+            vkey_f: contractProofData.vkeys.vkey_f.map(v => v.toString()),
+          },
+          proofs: {
+            proof_a: contractProofData.proofs.proof_a.map(p => p.toString()),
+            proof_b: contractProofData.proofs.proof_b.map(p => p.toString()),
+            proof_c: contractProofData.proofs.proof_c.map(p => p.toString()),
+            proof_d: contractProofData.proofs.proof_d.map(p => p.toString()),
+            proof_e: contractProofData.proofs.proof_e.map(p => p.toString()),
+            proof_f: contractProofData.proofs.proof_f.map(p => p.toString()),
+          },
+          vkey_hashes: {
+            vkey_hash_a: contractProofData.vkey_hashes.vkey_hash_a.toString(),
+            vkey_hash_b: contractProofData.vkey_hashes.vkey_hash_b.toString(),
+            vkey_hash_c: contractProofData.vkey_hashes.vkey_hash_c.toString(),
+            vkey_hash_d: contractProofData.vkey_hashes.vkey_hash_d.toString(),
+            vkey_hash_e: contractProofData.vkey_hashes.vkey_hash_e.toString(),
+            vkey_hash_f: contractProofData.vkey_hashes.vkey_hash_f.toString(),
+          },
+          public_inputs: {
+            input_a: contractProofData.public_inputs.input_a.map(i => i.toString()),
+            input_b: contractProofData.public_inputs.input_b.map(i => i.toString()),
+            input_c: contractProofData.public_inputs.input_c.map(i => i.toString()),
+            input_d: contractProofData.public_inputs.input_d.map(i => i.toString()),
+            input_e: contractProofData.public_inputs.input_e.map(i => i.toString()),
+            input_f: contractProofData.public_inputs.input_f.map(i => i.toString()),
+          },
+        } : null;
+
         const verificationData = {
           firstName: firstName,
           isOver18: isOver18,
           isEUCitizen: isEUCitizen,
           documentType: documentType,
           uniqueIdentifier: uniqueIdentifier || "",
-          // Not including any proof data
+          formattedProofs: serializableProofData // Include serializable formatted proofs
         }
         
         console.log("Sending verification data to API:", verificationData)
@@ -470,6 +546,19 @@ export default function Home() {
                     <div className="flex-1">
                       <p className="font-medium text-blue-800 mb-1">Unique Identifier</p>
                       <p className="text-xs text-blue-600 font-mono break-all">{uniqueIdentifier}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Formatted Proofs Status */}
+              {formattedProofs && (
+                <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-start">
+                    <span className="text-lg mr-2">🔐</span>
+                    <div className="flex-1">
+                      <p className="font-medium text-green-800 mb-1">ZK Proofs Formatted</p>
+                      <p className="text-xs text-green-600">Proofs successfully formatted for contract verification</p>
                     </div>
                   </div>
                 </div>

@@ -3,7 +3,7 @@ import { getInitialTestAccountsWallets } from '@aztec/accounts/testing';
 import { AztecAddress, Contract, createPXEClient, loadContractArtifact, waitForPXE } from '@aztec/aztec.js';
 import EmitterJSON from "./emitter-ZKPassportCredentialEmitter.json" assert { type: "json" };
 import { TokenContract } from '@aztec/noir-contracts.js/Token';
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -26,6 +26,53 @@ function getVerificationData() {
     console.error("Error parsing verification data:", error);
     return null;
   }
+}
+
+// Function to log formatted proofs in detail
+function logFormattedProofs(formattedProofs) {
+  if (!formattedProofs) {
+    console.log("❌ No formatted proofs available");
+    return;
+  }
+
+  console.log("\n" + "=".repeat(60));
+  console.log("🔐 FORMATTED ZK PROOFS FOR CONTRACT");
+  console.log("=".repeat(60));
+
+  // Log verification keys
+  console.log("\n📋 VERIFICATION KEYS:");
+  console.log(`  vkey_a length: ${formattedProofs.vkeys.vkey_a.length}`);
+  console.log(`  vkey_b length: ${formattedProofs.vkeys.vkey_b.length}`);
+  console.log(`  vkey_c length: ${formattedProofs.vkeys.vkey_c.length}`);
+  console.log(`  vkey_d length: ${formattedProofs.vkeys.vkey_d.length}`);
+
+  // Log proofs
+  console.log("\n🔑 PROOFS:");
+  console.log(`  proof_a length: ${formattedProofs.proofs.proof_a.length}`);
+  console.log(`  proof_b length: ${formattedProofs.proofs.proof_b.length}`);
+  console.log(`  proof_c length: ${formattedProofs.proofs.proof_c.length}`);
+  console.log(`  proof_d length: ${formattedProofs.proofs.proof_d.length}`);
+
+  // Log verification key hashes
+  console.log("\n#️⃣ VERIFICATION KEY HASHES:");
+  console.log(`  vkey_hash_a: ${formattedProofs.vkey_hashes.vkey_hash_a.toString()}`);
+  console.log(`  vkey_hash_b: ${formattedProofs.vkey_hashes.vkey_hash_b.toString()}`);
+  console.log(`  vkey_hash_c: ${formattedProofs.vkey_hashes.vkey_hash_c.toString()}`);
+  console.log(`  vkey_hash_d: ${formattedProofs.vkey_hashes.vkey_hash_d.toString()}`);
+
+  // Log public inputs
+  console.log("\n📊 PUBLIC INPUTS:");
+  console.log(`  input_a: [${formattedProofs.public_inputs.input_a.map(x => x.toString()).join(', ')}]`);
+  console.log(`  input_b: [${formattedProofs.public_inputs.input_b.map(x => x.toString()).join(', ')}]`);
+  console.log(`  input_c: [${formattedProofs.public_inputs.input_c.map(x => x.toString()).join(', ')}]`);
+  console.log(`  input_d: [${formattedProofs.public_inputs.input_d.map(x => x.toString()).join(', ')}]`);
+
+  // Log first few elements of each proof and vkey for debugging
+  console.log("\n🔍 SAMPLE DATA (first 3 elements):");
+  console.log(`  vkey_a sample: [${formattedProofs.vkeys.vkey_a.slice(0, 3).map(x => x.toString()).join(', ')}...]`);
+  console.log(`  proof_a sample: [${formattedProofs.proofs.proof_a.slice(0, 3).map(x => x.toString()).join(', ')}...]`);
+
+  console.log("=".repeat(60) + "\n");
 }
 
 // Convert a string to a Uint8Array of specific length
@@ -67,7 +114,6 @@ function hexAddressToUint8Array(hexAddress) {
   return addressBytes;
 }
 
-
 // Convert chain ID to a 31-byte array in the expected format
 function chainIdToUint8Array(chainId) {
   const chainIdBytes = new Uint8Array(31);
@@ -87,7 +133,6 @@ function chainIdToUint8Array(chainId) {
 function debugArray(name, array) {
   console.log(`${name} - Length: ${array.length}, First 5 bytes: [${Array.from(array.slice(0, 5)).map(b => '0x' + b.toString(16).padStart(2, '0')).join(', ')}], as hex: 0x${Buffer.from(array).toString('hex').substring(0, 10)}...`);
 }
-
 
 function createMessageArrays(donationAddress, arbChainId, verificationData) {
   // Create arrays: [donationAddress, arbChainId, msg1, msg2, msg3, msg4, msg5]
@@ -147,7 +192,21 @@ async function main() {
   // Get user verification data from environment variable
   const verificationData = getVerificationData();
   
-  console.log("Verification data:", verificationData);
+  console.log("Verification data received:", {
+    firstName: verificationData?.firstName,
+    isOver18: verificationData?.isOver18,
+    isEUCitizen: verificationData?.isEUCitizen,
+    documentType: verificationData?.documentType,
+    uniqueIdentifier: verificationData?.uniqueIdentifier,
+    hasFormattedProofs: !!verificationData?.formattedProofs
+  });
+  
+  // Log the formatted proofs if they exist
+  if (verificationData?.formattedProofs) {
+    logFormattedProofs(verificationData.formattedProofs);
+  } else {
+    console.log("⚠️  No formatted proofs found in verification data");
+  }
   
   // Connect to PXE
   const pxe = createPXEClient(PXE_URL);
@@ -160,11 +219,11 @@ async function main() {
   console.log(`Owner address: ${ownerAddress}`);
   console.log(`Receiver address: ${receiverWallet.getAddress()}`);
   
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
   // Load addresses from file or use hardcoded defaults
   let addresses;
   try {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
     const addressesPath = join(__dirname, 'addresses.json');
     addresses = JSON.parse(readFileSync(addressesPath, 'utf8'));
     console.log("Using addresses from addresses.json:", addresses);
@@ -186,9 +245,20 @@ async function main() {
   console.log("Getting token contract...");
   const token = await TokenContract.at(token_address, ownerWallet);
 
-  // Use a new nonce
-  const token_nonce = 278n;
-  console.log(`Using token nonce: ${token_nonce}`);
+
+  const noncePath = join(__dirname, 'nonce.json');
+  const nonce_file_data = JSON.parse(readFileSync(noncePath, 'utf8'));
+
+  // Safe BigInt handling
+  const current_nonce = nonce_file_data.token_nonce
+    ? BigInt(nonce_file_data.token_nonce)
+    : 0n;
+
+  const token_nonce = current_nonce + 1n;
+
+  const new_nonce_data = { token_nonce: token_nonce.toString() };
+
+  writeFileSync(noncePath, JSON.stringify(new_nonce_data, null, 2));  console.log(`Using token nonce: ${token_nonce}`);
   
   // First, set up the public auth witness for the Wormhole contract
   const tokenTransferAction = token.methods.transfer_in_public(
@@ -214,7 +284,7 @@ async function main() {
   const donationAction = token.methods.transfer_in_private(
     ownerWallet.getAddress(),
     receiverWallet.getAddress(),
-    23n,
+    24n,
     token_nonce 
   );
   console.log("Generating private authwit for donation...");
@@ -238,7 +308,7 @@ async function main() {
   const arb_chain_id_as_u8_31 = chainIdToUint8Array(arb_chain_id);
   
   // Create message arrays with user data (5 arrays of 31 bytes each)
-  const msgArrays = createMessageArrays(vault_address,arb_chain_id_as_u8_31, verificationData);  
+  const msgArrays = createMessageArrays(vault_address, arb_chain_id_as_u8_31, verificationData);  
 
   // Log what's going to be sent
   console.log("About to send transaction with:");
@@ -248,6 +318,15 @@ async function main() {
   console.log("  The contract will create 8 arrays of 31 bytes total (first 3 for addresses + 5 from us)");
   console.log("  Total bytes in final payload should be: 8 * 31 = 248 bytes");
 
+  // If we have formatted proofs, we could potentially use them here
+  // For now, we're just logging them, but you could extend the contract
+  // to accept and verify the proofs as well
+  if (verificationData?.formattedProofs) {
+    console.log("\n🎯 ZK PROOFS READY FOR CONTRACT VERIFICATION");
+    console.log("   These proofs could be used for on-chain verification");
+    console.log("   if the contract supports ZK proof verification.");
+  }
+
   console.log("Calling emitter verify_and_publish...");
   
   try {
@@ -255,7 +334,7 @@ async function main() {
       msgArrays,            // Message arrays (5 arrays of 31 bytes each)
       wormhole_address,     // Wormhole contract address
       token_address,        // Token contract address
-      23n,                   // Amount
+      24n,                   // Amount
       token_nonce           // Token nonce
     ).send({ authWitnesses: [donationWitness] }).wait();
 
@@ -263,6 +342,14 @@ async function main() {
     console.log("Block number:", tx.blockNumber);
     
     console.log("Transaction completed successfully!");
+    
+    // Final summary of what was processed
+    if (verificationData?.formattedProofs) {
+      console.log("\n✅ SUMMARY:");
+      console.log("   - User data sent to contract");
+      console.log("   - ZK proofs formatted and logged");
+      console.log("   - Ready for future ZK verification integration");
+    }
     
     return tx;
   } catch (txError) {
