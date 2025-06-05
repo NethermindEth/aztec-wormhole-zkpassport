@@ -9,13 +9,13 @@ export default function Home() {
   const [message, setMessage] = useState("")
   const [queryUrl, setQueryUrl] = useState("")
   const [formattedProofs, setFormattedProofs] = useState<any>(null) // Store formatted proofs
+  const [donationAmount, setDonationAmount] = useState<number | "">("")  // No default amount - user must enter
   
   // UI state variables
   const [requestInProgress, setRequestInProgress] = useState(false)
   const [txHash, setTxHash] = useState("")
   const [txStatus, setTxStatus] = useState("")
-  const [arbitrumMessage, setArbitrumMessage] = useState<string | null>(null)
-  const [rawDataChunks, setRawDataChunks] = useState<string[]>([])
+  const [receivedDonation, setReceivedDonation] = useState<number | null>(null) // Just store the received donation
   const [isPolling, setIsPolling] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -47,14 +47,19 @@ export default function Home() {
     if (!zkPassportRef.current) {
       return
     }
+
+    // Validate donation amount before proceeding
+    if (!donationAmount || donationAmount <= 0 || donationAmount > 254) {
+      setError("Please enter a valid donation amount between 1 and 254")
+      return
+    }
     
     // Reset all state
     setMessage("")
     setQueryUrl("")
     setTxHash("")
     setTxStatus("")
-    setArbitrumMessage(null)
-    setRawDataChunks([])
+    setReceivedDonation(null)
     setIsPolling(false)
     setShowQRCode(true)
     setError("")
@@ -69,7 +74,7 @@ export default function Home() {
       const queryBuilder = await zkPassportRef.current.request({
         name: "Obsidion Wallet",
         logo: window.location.origin + "/wallet-logo.png",
-        purpose: "Prove your personhood and EU citizenship",
+        purpose: "Prove your personhood and EU citizenship to make a verified donation",
         scope: serviceScope,
         mode: "fast",
         devMode: true,
@@ -221,13 +226,14 @@ export default function Home() {
           isEUCitizen: isEUCitizen,
           documentType: documentType,
           uniqueIdentifier: uniqueIdentifier || "",
+          amount: Number(donationAmount), // Ensure it's a number
           formattedProofs: serializableProofData // Include serializable formatted proofs
         }
         
         console.log("Sending verification data to API:", verificationData)
         
         // Send data to API
-        setTxStatus("Sending ZK proofs to Aztec contract...")
+        setTxStatus(`Processing your verified donation of ${donationAmount} tokens...`)
         setTxHash("")
         
         try {
@@ -246,10 +252,10 @@ export default function Home() {
           const data = await response.json()
           
           if (data.success) {
-            setTxStatus("ZK proofs sent successfully to Aztec contract!")
+            setTxStatus(`Your verified donation of ${donationAmount} tokens has been submitted!`)
             setTxHash(data.txHash)
             // Start polling automatically once we have a txHash
-            startPollingArbitrumMessage(data.txHash)
+            startPollingDonation(data.txHash)
           } else {
             setTxStatus(`Error: ${data.error}`)
           }
@@ -283,8 +289,8 @@ export default function Home() {
     }
   }
 
-  // Function to start polling for Arbitrum message using txHash
-  const startPollingArbitrumMessage = (currentTxHash?: string) => {
+  // Function to start polling for the donation confirmation using txHash
+  const startPollingDonation = (currentTxHash?: string) => {
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current)
     }
@@ -293,9 +299,9 @@ export default function Home() {
     const hashToUse = currentTxHash || txHash
 
     setIsPolling(true)
-    setTxStatus((prevStatus) => `${prevStatus} - Polling for transaction data...`)
+    setTxStatus((prevStatus) => `${prevStatus} - Checking donation confirmation...`)
 
-    console.log(`Polling for transaction data with hash: ${hashToUse}`)
+    console.log(`Polling for donation confirmation with hash: ${hashToUse}`)
 
     pollingIntervalRef.current = setInterval(
       async () => {
@@ -317,16 +323,10 @@ export default function Home() {
           console.log("Polling response:", data)
 
           // Check if we got a non-zero amount
-          if (data.success && data.message && data.message !== "0x" && 
-              data.message !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
-            setArbitrumMessage(data.message)
-            
-            // Store raw data chunks if available
-            if (data.parsedData && data.parsedData.rawData) {
-              setRawDataChunks(data.parsedData.rawData)
-            }
-            
-            setTxStatus("Transaction data received!")
+          if (data.success && data.parsedData && data.parsedData.amount) {
+            const receivedAmount = parseInt(data.parsedData.amount)
+            setReceivedDonation(receivedAmount)
+            setTxStatus("Donation confirmed!")
             setIsPolling(false)
 
             if (pollingIntervalRef.current) {
@@ -335,8 +335,8 @@ export default function Home() {
             }
           }
         } catch (error) {
-          console.error("Error polling transaction data:", error)
-          setTxStatus(`Error polling: ${error instanceof Error ? error.message : "Unknown error"}`)
+          console.error("Error polling donation confirmation:", error)
+          setTxStatus(`Error checking donation: ${error instanceof Error ? error.message : "Unknown error"}`)
 
           if (pollingIntervalRef.current) {
             clearInterval(pollingIntervalRef.current)
@@ -363,18 +363,47 @@ export default function Home() {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">🛡️ ZKPassport Verification</h1>
+          <h1 className="text-4xl font-bold text-gray-800 mb-4">💝 Verified Donation Platform</h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Secure identity verification using zero-knowledge proofs and cross-chain messaging
+            Make verified donations using zero-knowledge identity proofs and secure cross-chain transfers
           </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column - QR Code and Controls */}
           <div className="space-y-6">
+            {/* Donation Amount Input */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">💰 Donation Amount</h2>
+              <div className="space-y-3">
+                <label htmlFor="donationAmount" className="block text-sm font-medium text-gray-700">
+                  How much would you like to donate?
+                </label>
+                <input
+                  id="donationAmount"
+                  type="number"
+                  min="1"
+                  max="254"
+                  value={donationAmount}
+                  onChange={(e) => setDonationAmount(e.target.value ? parseInt(e.target.value) : "")}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter donation amount (1-254)"
+                  required
+                />
+                <p className="text-xs text-gray-500">
+                  Your donation will be securely processed after identity verification (1-254 tokens)
+                </p>
+                {!donationAmount && (
+                  <p className="text-xs text-red-500">
+                    Donation amount is required (1-254 tokens)
+                  </p>
+                )}
+              </div>
+            </div>
+
             {/* QR Code Section */}
             <div className="bg-white rounded-xl shadow-lg p-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">🔄 Verification Request</h2>
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">🔄 Identity Verification</h2>
 
               {showQRCode && queryUrl ? (
                 <div className="text-center">
@@ -388,7 +417,7 @@ export default function Home() {
                   <div className="w-40 h-40 mx-auto bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
                     <div className="text-center">
                       <div className="text-3xl mb-2">📱</div>
-                      <p className="text-gray-500 text-sm">Generate request</p>
+                      <p className="text-gray-500 text-sm">Start verification</p>
                     </div>
                   </div>
                 </div>
@@ -421,9 +450,9 @@ export default function Home() {
                 <button
                   className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={createRequest}
-                  disabled={requestInProgress || isLoading}
+                  disabled={requestInProgress || isLoading || !donationAmount}
                 >
-                  {requestInProgress || isLoading ? "🔄 Processing..." : "🛡️ Generate New Request"}
+                  {requestInProgress || isLoading ? "🔄 Processing..." : "💝 Verify Identity & Donate"}
                 </button>
               </div>
             </div>
@@ -431,13 +460,13 @@ export default function Home() {
             {/* ZK Proofs Status */}
             {formattedProofs && (
               <div className="bg-white rounded-xl shadow-lg p-6">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4">🔐 ZK Proofs</h2>
+                <h2 className="text-xl font-semibold text-gray-800 mb-4">🔐 Identity Verified</h2>
                 <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
                   <div className="flex items-start">
                     <span className="text-lg mr-2">✅</span>
                     <div className="flex-1">
-                      <p className="font-medium text-green-800 mb-1">ZK Proofs Generated</p>
-                      <p className="text-xs text-green-600">Proofs ready for Aztec contract verification</p>
+                      <p className="font-medium text-green-800 mb-1">Zero-Knowledge Proof Generated</p>
+                      <p className="text-xs text-green-600">Your identity has been verified without revealing personal data</p>
                     </div>
                   </div>
                 </div>
@@ -445,12 +474,12 @@ export default function Home() {
             )}
           </div>
 
-          {/* Right Column - Transaction Status and Results */}
+          {/* Right Column - Donation Status and Results */}
           <div className="space-y-6">
-            {/* Transaction Status */}
+            {/* Donation Status */}
             {(txStatus || txHash) && (
               <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">🔗 Transaction Status</h3>
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">💝 Donation Status</h3>
 
                 {txStatus && (
                   <div className="mb-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
@@ -463,7 +492,7 @@ export default function Home() {
 
                 {txHash && (
                   <div className="p-3 bg-gray-50 rounded-lg mb-3">
-                    <p className="font-medium text-gray-700 mb-1">Transaction Hash</p>
+                    <p className="font-medium text-gray-700 mb-1">Donation Receipt</p>
                     <p className="text-xs text-gray-600 font-mono break-all">{txHash}</p>
                   </div>
                 )}
@@ -476,37 +505,44 @@ export default function Home() {
                         ? "bg-red-500 hover:bg-red-600 text-white"
                         : "bg-green-500 hover:bg-green-600 text-white"
                     }`}
-                    onClick={isPolling ? stopPolling : () => startPollingArbitrumMessage(txHash)}
+                    onClick={isPolling ? stopPolling : () => startPollingDonation(txHash)}
                   >
-                    {isPolling ? "⏹️ Stop Polling" : "▶️ Start Polling"}
+                    {isPolling ? "⏹️ Stop Checking" : "🔍 Check Confirmation"}
                   </button>
                 )}
               </div>
             )}
 
-            {/* Cross-Chain Message - CLEANED VERSION */}
-            {arbitrumMessage && (
+            {/* Cross-Chain Donation Confirmation */}
+            {receivedDonation !== null && (
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl shadow-lg p-6 border border-green-200">
-                <h3 className="text-lg font-semibold text-green-900 mb-3">🌉 Cross-Chain Verification Complete</h3>
+                <h3 className="text-lg font-semibold text-green-900 mb-3">🎉 Donation Confirmed!</h3>
 
                 <div className="bg-white p-4 rounded-lg shadow-sm border border-green-100">
-                  {/* Transaction Amount - Only uint8 */}
+                  {/* Donation Amount Verification */}
                   <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm font-medium text-blue-800 mb-1">Transaction Amount:</p>
-                    {rawDataChunks.length > 0 && (
-                      <div className="bg-white p-2 rounded-lg border border-blue-100">
-                        <span className="text-xs text-blue-600 font-medium block mb-1">as uint8 (1 byte):</span>
-                        <span className="text-lg font-bold text-blue-900">
-                          {parseInt(rawDataChunks[0].substring(0, 2), 16)}
-                        </span>
+                    <p className="text-sm font-medium text-blue-800 mb-2">Donation Verification:</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-white p-2 rounded border border-blue-100">
+                        <span className="text-xs text-blue-600 font-medium block">You Donated:</span>
+                        <span className="text-lg font-bold text-blue-900">{donationAmount}</span>
                       </div>
+                      <div className="bg-white p-2 rounded border border-blue-100">
+                        <span className="text-xs text-blue-600 font-medium block">Confirmed:</span>
+                        <span className="text-lg font-bold text-blue-900">{receivedDonation}</span>
+                      </div>
+                    </div>
+                    {Number(donationAmount) === Number(receivedDonation) ? (
+                      <p className="text-xs text-green-600 mt-2 text-center">✅ Donation amount verified!</p>
+                    ) : (
+                      <p className="text-xs text-red-600 mt-2 text-center">⚠️ Amounts don't match (Expected: {donationAmount}, Got: {receivedDonation})</p>
                     )}
                   </div>
                   
                   {/* Success Message */}
                   <div className="mt-3 pt-3 border-t border-green-100">
-                    <p className="text-sm text-green-600">
-                      ✅ Transaction data successfully received across blockchains using Wormhole protocol
+                    <p className="text-sm text-green-600 text-center">
+                      🌟 Thank you for your verified donation! Your contribution has been securely processed across blockchains.
                     </p>
                   </div>
                 </div>

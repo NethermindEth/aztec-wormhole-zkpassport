@@ -16,7 +16,7 @@ contract DeployVault is Script {
         uint8 finality = 2; 
         
         // Emitter registration info
-        bytes32 emitterAddress = hex"2a7bfdc4f3200a117a8eb6610b93ce412430bfe05aefa5fce3ac9db392596566";
+        bytes32 emitterAddress = hex"13711ba68960f0b0e703f2c872bed8990242b44f526cce4cd3f694b9c2a20503";
         uint16 emitterChainId = 52; // Source chain ID
 
         vm.startBroadcast();
@@ -35,7 +35,7 @@ contract DeployVault is Script {
             donationContractAddress
         );
         console.log("Vault deployed to: %s", address(vault));
-        
+                
         // Register emitter
         vault.registerEmitter(emitterChainId, emitterAddress);
         console.log("Registered emitter for chain %d", emitterChainId);

@@ -57,6 +57,8 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
+    console.log("Original txHash received:", txHash);
+
     // Ensure the txHash is properly formatted
     try {
       // Make sure it's a valid hash
@@ -64,8 +66,9 @@ export async function POST(request: NextRequest) {
         txHash = `0x${txHash}`;
       }
       
-      // Validate the hash and convert to bytes32 format
-      txHash = to32ByteHex(txHash);
+      // Convert to bytes32 format for the contract call
+      const bytes32TxHash = to32ByteHex(txHash);
+      console.log("Converted to bytes32:", bytes32TxHash);
       
     } catch (hashError) {
       console.error("Invalid transaction hash format:", hashError);
@@ -81,7 +84,7 @@ export async function POST(request: NextRequest) {
     );
     
     // Use the actual contract address
-    const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xb111Ded3F2e4012C0B85D930Fda298693D0DA0B2";
+    const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xB247a2fcBe1223C24374a27966952491CA56c800";
     
     try {
       // First verify if the contract exists at this address
@@ -96,9 +99,13 @@ export async function POST(request: NextRequest) {
       // Create a contract interface for encoding/decoding
       const contractInterface = new ethers.Interface(vaultGettersABI);
       
-      // Encode the function call - Now passing txHash directly as the argument
-      const callData = contractInterface.encodeFunctionData("getArbitrumMessage", [txHash]);
+      // Convert txHash to bytes32 format for the contract call
+      const bytes32TxHash = to32ByteHex(txHash);
+      
+      // Encode the function call
+      const callData = contractInterface.encodeFunctionData("getArbitrumMessage", [bytes32TxHash]);
       console.log("Encoded call data:", callData);
+      console.log("Using txHash as bytes32:", bytes32TxHash);
       
       // Make a low-level call
       try {
@@ -122,31 +129,17 @@ export async function POST(request: NextRequest) {
         
         // Try to decode the result as a uint256 (amount)
         try {
+          console.log("Attempting to decode as uint256...");
+          
+          // Use ethers to properly decode the uint256 result
           const decodedResult = contractInterface.decodeFunctionResult("getArbitrumMessage", rawResult);
-          console.log("Decoded result:", decodedResult);
+          const amount = decodedResult[0]; // First (and only) return value
           
-          // The first element of decodedResult should be our uint256 amount
-          const amount = decodedResult[0];
+          console.log("Decoded amount:", amount.toString());
           
-          // Convert to a hex string for consistent handling
-          const amountHex = '0x' + amount.toString(16).padStart(64, '0');
+          // Convert BigInt to regular number for JSON serialization
+          const amountNumber = Number(amount);
           
-          // Return the amount value
-          return NextResponse.json({
-            success: true,
-            message: amountHex,
-            txHash: txHash,
-            rawResult: rawResult,
-            parsedData: {
-              txHash: txHash,
-              amount: amount.toString(),
-              rawData: [amount.toString(16).padStart(64, '0')] // Format as 32-byte hex
-            }
-          });
-        } catch (decodeError) {
-          console.error("Failed to decode result:", decodeError);
-          
-          // If we couldn't decode it as a uint256, just return the raw result
           return NextResponse.json({
             success: true,
             message: rawResult,
@@ -154,9 +147,48 @@ export async function POST(request: NextRequest) {
             rawResult: rawResult,
             parsedData: {
               txHash: txHash,
-              rawData: [rawResult.substring(2)] // Just return the raw value as a single chunk
+              amount: amountNumber.toString(),
+              rawData: [amount.toString()]
             }
           });
+        } catch (decodeError) {
+          console.error("Failed to decode as uint256, trying manual parsing:", decodeError);
+          
+          // Fallback: try to parse the raw result manually
+          // If rawResult is a proper hex string representing a uint256
+          try {
+            const bigIntAmount = BigInt(rawResult);
+            const amountNumber = Number(bigIntAmount);
+            
+            console.log("Manual parsing result:", amountNumber);
+            
+            return NextResponse.json({
+              success: true,
+              message: rawResult,
+              txHash: txHash,
+              rawResult: rawResult,
+              parsedData: {
+                txHash: txHash,
+                amount: amountNumber.toString(),
+                rawData: [bigIntAmount.toString()]
+              }
+            });
+          } catch (manualParseError) {
+            console.error("Manual parsing also failed:", manualParseError);
+            
+            // If all else fails, return the raw result
+            return NextResponse.json({
+              success: true,
+              message: rawResult,
+              txHash: txHash,
+              rawResult: rawResult,
+              parsedData: {
+                txHash: txHash,
+                amount: "0", // Default to 0 if we can't parse
+                rawData: [rawResult.substring(2)]
+              }
+            });
+          }
         }
       } catch (callError) {
         console.error("Low-level call failed:", callError);

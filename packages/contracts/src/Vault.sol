@@ -96,6 +96,9 @@ contract Vault is VaultGetters {
             txID := mload(add(payload, 32)) // First 32 bytes are the txID
         }
 
+        // Ensure the extracted txID is valid
+        require(txID != bytes32(0), "Invalid txID extracted");
+
         // Extract Arbitrum address and amount from payload (after txID)
         address arbitrumAddress;
         uint256 amount;
@@ -108,23 +111,24 @@ contract Vault is VaultGetters {
             arbitrumAddress := shr(96, addressData)
         }
 
-        // Extract amount (32 bytes starting at position 62 + txIDOffset)
+        require(arbitrumAddress != address(0), "Invalid address");
+    
         assembly {
-            // Load the 32 bytes starting at position 94 + txIDOffset
-            amount := mload(add(payload, 126)) // 94 (original offset) + 32 (txID offset) = 126
+            // Load the 32 bytes from the amount section
+            let amountData := mload(add(payload, 126))
+            // Extract only the first byte (shift right by 31 bytes = 248 bits)
+            amount := shr(248, amountData)
         }
 
-        // Ensure the extracted address is valid
-        require(arbitrumAddress != address(0), "Invalid address extracted");
-        // Ensure the extracted txID is valid
-        require(txID != bytes32(0), "Invalid txID extracted");
+        // Check if already processed
+        require(_state.arbitrumMessages[txID] == 0, "Already processed");
+
+        // Store the amount for this txID
+        _state.arbitrumMessages[txID] = amount;
 
         if (amount > 0) {
             donationContract().donate(amount);
         }
-
-        // Store the amount for this txID
-        _state.arbitrumMessages[txID] = amount;
 
         // Emit event for successful storage
         emit AmountExtracted(arbitrumAddress, amount);

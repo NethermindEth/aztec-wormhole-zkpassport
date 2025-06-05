@@ -158,6 +158,10 @@ async function main() {
   // Get user verification data from environment variable
   const verificationData = getVerificationData();
   
+  // Extract amount from user data, default to 35 if not provided
+  const userAmount = verificationData?.amount || 35;
+  console.log(`Using amount from user input: ${userAmount}`);
+  
   // Log the formatted proofs if they exist
   if (verificationData?.formattedProofs) {
     logFormattedProofs(verificationData.formattedProofs);
@@ -202,7 +206,6 @@ async function main() {
   console.log("Getting token contract...");
   const token = await TokenContract.at(token_address, ownerWallet);
 
-
   const noncePath = join(__dirname, 'nonce.json');
   const nonce_file_data = JSON.parse(readFileSync(noncePath, 'utf8'));
 
@@ -215,7 +218,8 @@ async function main() {
 
   const new_nonce_data = { token_nonce: token_nonce.toString() };
 
-  writeFileSync(noncePath, JSON.stringify(new_nonce_data, null, 2));  console.log(`Using token nonce: ${token_nonce}`);
+  writeFileSync(noncePath, JSON.stringify(new_nonce_data, null, 2));  
+  console.log(`Using token nonce: ${token_nonce}`);
   
   // First, set up the public auth witness for the Wormhole contract
   const tokenTransferAction = token.methods.transfer_in_public(
@@ -237,14 +241,14 @@ async function main() {
   await validateActionInteraction.send().wait();
   console.log("Public auth witness set up successfully");
 
-  // Now create the donation action and private auth witness
+  // Now create the donation action and private auth witness with dynamic amount
   const donationAction = token.methods.transfer_in_private(
     ownerWallet.getAddress(),
     receiverWallet.getAddress(),
-    35n,
+    BigInt(userAmount), // Use dynamic amount instead of hardcoded 35n
     token_nonce 
   );
-  console.log("Generating private authwit for donation...");
+  console.log(`Generating private authwit for donation of ${userAmount} tokens...`);
 
   const donationWitness = await ownerWallet.createAuthWit({ 
     caller: emitterAddress, 
@@ -255,7 +259,7 @@ async function main() {
   const contract = await Contract.at(emitterAddress, EmitterContractArtifact, ownerWallet);
   
   // The vault address we want to appear in the logs
-  const targetVaultAddress = "0xb111Ded3F2e4012C0B85D930Fda298693D0DA0B2";
+  const targetVaultAddress = "0xB247a2fcBe1223C24374a27966952491CA56c800";
   console.log(`Target vault address: ${targetVaultAddress}`);
   
   // Create arbitrum address and vault address - these are passed directly to the contract
@@ -271,6 +275,7 @@ async function main() {
   console.log("About to send transaction with:");
   console.log("- Vault address (20 bytes- padded to 31 bytes)");
   console.log("- Arbitrum ChainID (31 bytes including padding)");
+  console.log(`- Amount: ${userAmount} (from user input)`);
   console.log("- 5 message arrays of 31 bytes each");
   console.log("  The contract will create 8 arrays of 31 bytes total (first 3 for addresses + 5 from us)");
   console.log("  Total bytes in final payload should be: 8 * 31 = 248 bytes");
@@ -292,7 +297,7 @@ async function main() {
       msgArrays,            // Message arrays (5 arrays of 31 bytes each)
       wormhole_address,     // Wormhole contract address
       token_address,        // Token contract address
-      35n,                   // Amount
+      BigInt(userAmount),   // Amount
       token_nonce           // Token nonce
     ).send({ authWitnesses: [donationWitness] }).wait();
 
@@ -300,11 +305,13 @@ async function main() {
     console.log("Block number:", tx.blockNumber);
     
     console.log("Transaction completed successfully!");
+    console.log(`✅ Amount ${userAmount} sent successfully via cross-chain transaction`);
     
     // Final summary of what was processed
     if (verificationData?.formattedProofs) {
       console.log("\n✅ SUMMARY:");
       console.log("   - User data sent to contract");
+      console.log(`   - Amount ${userAmount} transferred`);
       console.log("   - ZK proofs formatted and logged");
       console.log("   - Ready for future ZK verification integration");
     }
