@@ -5,15 +5,9 @@ import QRCode from "react-qr-code"
 import { ZKPassportHelper } from "./ZKPassportHelper" // Adjust the import path as needed
 
 export default function Home() {
-  // User data state variables
+  // Only keep essential state variables
   const [message, setMessage] = useState("")
-  const [firstName, setFirstName] = useState("")
-  const [isEUCitizen, setIsEUCitizen] = useState<boolean | undefined>(undefined)
-  const [isOver18, setIsOver18] = useState<boolean | undefined>(undefined)
-  const [documentType, setDocumentType] = useState("")
   const [queryUrl, setQueryUrl] = useState("")
-  const [uniqueIdentifier, setUniqueIdentifier] = useState("")
-  const [verified, setVerified] = useState<boolean | undefined>(undefined)
   const [formattedProofs, setFormattedProofs] = useState<any>(null) // Store formatted proofs
   
   // UI state variables
@@ -55,14 +49,8 @@ export default function Home() {
     }
     
     // Reset all state
-    setFirstName("")
-    setIsEUCitizen(undefined)
     setMessage("")
-    setDocumentType("")
     setQueryUrl("")
-    setIsOver18(undefined)
-    setUniqueIdentifier("")
-    setVerified(undefined)
     setTxHash("")
     setTxStatus("")
     setArbitrumMessage(null)
@@ -155,20 +143,13 @@ export default function Home() {
           console.log("Using collected proofs from onProofGenerated:", proofs.length, "proofs")
         }
 
-        // Extract data from results
+        // Extract data from results (only for sending to API, not for display)
         const firstName = result?.firstname?.disclose?.result || ""
         const isEUCitizen = result?.issuing_country?.in?.result || false
         const isOver18 = result?.age?.gte?.result || false
         const documentType = result?.document_type?.disclose?.result || ""
         
-        // Store the results in state
-        setFirstName(firstName)
-        setIsEUCitizen(isEUCitizen)
-        setIsOver18(isOver18)
-        setDocumentType(documentType)
-        setMessage("User verification completed")
-        setUniqueIdentifier(uniqueIdentifier || "")
-        setVerified(verificationResult)
+        setMessage("ZK proof generation completed")
         setRequestInProgress(false)
         
         // Auto close QR code after verification
@@ -246,7 +227,7 @@ export default function Home() {
         console.log("Sending verification data to API:", verificationData)
         
         // Send data to API
-        setTxStatus("Sending verification data to Aztec contract...")
+        setTxStatus("Sending ZK proofs to Aztec contract...")
         setTxHash("")
         
         try {
@@ -263,10 +244,9 @@ export default function Home() {
           }
           
           const data = await response.json()
-          console.log("API response:", data)
           
           if (data.success) {
-            setTxStatus("Verification data sent successfully to Aztec contract!")
+            setTxStatus("ZK proofs sent successfully to Aztec contract!")
             setTxHash(data.txHash)
             // Start polling automatically once we have a txHash
             startPollingArbitrumMessage(data.txHash)
@@ -380,7 +360,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-100 p-6">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-10">
           <h1 className="text-4xl font-bold text-gray-800 mb-4">🛡️ ZKPassport Verification</h1>
@@ -419,7 +399,7 @@ export default function Home() {
                 <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex items-center">
                     <span className="text-blue-600 mr-2">
-                      {requestInProgress ? "⏳" : verified === true ? "✅" : verified === false ? "❌" : "⏱️"}
+                      {requestInProgress ? "⏳" : "✅"}
                     </span>
                     <span className="text-blue-800 font-medium">{message}</span>
                   </div>
@@ -447,120 +427,26 @@ export default function Home() {
                 </button>
               </div>
             </div>
+
+            {/* ZK Proofs Status */}
+            {formattedProofs && (
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h2 className="text-xl font-semibold text-gray-800 mb-4">🔐 ZK Proofs</h2>
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-start">
+                    <span className="text-lg mr-2">✅</span>
+                    <div className="flex-1">
+                      <p className="font-medium text-green-800 mb-1">ZK Proofs Generated</p>
+                      <p className="text-xs text-green-600">Proofs ready for Aztec contract verification</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Right Column - Results */}
+          {/* Right Column - Transaction Status and Results */}
           <div className="space-y-6">
-            {/* Verification Results */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">✅ Verification Results</h2>
-
-              <div className="space-y-3">
-                {/* First Name */}
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center">
-                    <span className="text-lg mr-2">👤</span>
-                    <span className="font-medium text-gray-700">First Name</span>
-                  </div>
-                  <span className="text-gray-900 font-semibold">{firstName || "Not verified"}</span>
-                </div>
-
-                {/* Document Type */}
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center">
-                    <span className="text-lg mr-2">📄</span>
-                    <span className="font-medium text-gray-700">Document Type</span>
-                  </div>
-                  <span className="text-gray-900 font-semibold">{documentType || "Not verified"}</span>
-                </div>
-
-                {/* EU Citizenship */}
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center">
-                    <span className="text-lg mr-2">🌍</span>
-                    <span className="font-medium text-gray-700">EU Citizen</span>
-                  </div>
-                  <div className="flex items-center">
-                    {typeof isEUCitizen === "boolean" ? (
-                      <>
-                        <span className="mr-1">{isEUCitizen ? "✅" : "❌"}</span>
-                        <span className={`font-semibold ${isEUCitizen ? "text-green-600" : "text-red-600"}`}>
-                          {isEUCitizen ? "Yes" : "No"}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-gray-500">Not verified</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Age Verification */}
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center">
-                    <span className="text-lg mr-2">📅</span>
-                    <span className="font-medium text-gray-700">Over 18</span>
-                  </div>
-                  <div className="flex items-center">
-                    {typeof isOver18 === "boolean" ? (
-                      <>
-                        <span className="mr-1">{isOver18 ? "✅" : "❌"}</span>
-                        <span className={`font-semibold ${isOver18 ? "text-green-600" : "text-red-600"}`}>
-                          {isOver18 ? "Yes" : "No"}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-gray-500">Not verified</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Overall Verification Status */}
-                {verified !== undefined && (
-                  <div
-                    className={`p-3 rounded-lg border-2 ${verified ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}
-                  >
-                    <div className="flex items-center">
-                      <span className="text-xl mr-2">{verified ? "✅" : "❌"}</span>
-                      <div>
-                        <p className={`font-semibold ${verified ? "text-green-800" : "text-red-800"}`}>
-                          {verified ? "Verification Successful" : "Verification Failed"}
-                        </p>
-                        <p className={`text-sm ${verified ? "text-green-600" : "text-red-600"}`}>
-                          {verified ? "User identity verified" : "Unable to verify user identity"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Unique Identifier */}
-              {uniqueIdentifier && (
-                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-start">
-                    <span className="text-lg mr-2">#️⃣</span>
-                    <div className="flex-1">
-                      <p className="font-medium text-blue-800 mb-1">Unique Identifier</p>
-                      <p className="text-xs text-blue-600 font-mono break-all">{uniqueIdentifier}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Formatted Proofs Status */}
-              {formattedProofs && (
-                <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-start">
-                    <span className="text-lg mr-2">🔐</span>
-                    <div className="flex-1">
-                      <p className="font-medium text-green-800 mb-1">ZK Proofs Formatted</p>
-                      <p className="text-xs text-green-600">Proofs successfully formatted for contract verification</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
             {/* Transaction Status */}
             {(txStatus || txHash) && (
               <div className="bg-white rounded-xl shadow-lg p-6">
@@ -598,34 +484,34 @@ export default function Home() {
               </div>
             )}
 
-          {/* Cross-Chain Message - CLEANED VERSION */}
-          {arbitrumMessage && (
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl shadow-lg p-6 border border-green-200">
-              <h3 className="text-lg font-semibold text-green-900 mb-3">🌉 Cross-Chain Verification Complete</h3>
+            {/* Cross-Chain Message - CLEANED VERSION */}
+            {arbitrumMessage && (
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl shadow-lg p-6 border border-green-200">
+                <h3 className="text-lg font-semibold text-green-900 mb-3">🌉 Cross-Chain Verification Complete</h3>
 
-              <div className="bg-white p-4 rounded-lg shadow-sm border border-green-100">
-                {/* Transaction Amount - Only uint8 */}
-                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm font-medium text-blue-800 mb-1">Transaction Amount:</p>
-                  {rawDataChunks.length > 0 && (
-                    <div className="bg-white p-2 rounded-lg border border-blue-100">
-                      <span className="text-xs text-blue-600 font-medium block mb-1">as uint8 (1 byte):</span>
-                      <span className="text-lg font-bold text-blue-900">
-                        {parseInt(rawDataChunks[0].substring(0, 2), 16)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Success Message */}
-                <div className="mt-3 pt-3 border-t border-green-100">
-                  <p className="text-sm text-green-600">
-                    ✅ Transaction data successfully received across blockchains using Wormhole protocol
-                  </p>
+                <div className="bg-white p-4 rounded-lg shadow-sm border border-green-100">
+                  {/* Transaction Amount - Only uint8 */}
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm font-medium text-blue-800 mb-1">Transaction Amount:</p>
+                    {rawDataChunks.length > 0 && (
+                      <div className="bg-white p-2 rounded-lg border border-blue-100">
+                        <span className="text-xs text-blue-600 font-medium block mb-1">as uint8 (1 byte):</span>
+                        <span className="text-lg font-bold text-blue-900">
+                          {parseInt(rawDataChunks[0].substring(0, 2), 16)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Success Message */}
+                  <div className="mt-3 pt-3 border-t border-green-100">
+                    <p className="text-sm text-green-600">
+                      ✅ Transaction data successfully received across blockchains using Wormhole protocol
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
           </div>
         </div>
       </div>
