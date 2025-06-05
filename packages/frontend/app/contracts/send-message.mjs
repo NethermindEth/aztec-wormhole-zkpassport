@@ -145,42 +145,7 @@ function createMessageArrays(donationAddress, arbChainId, verificationData) {
     arr.fill(0);
     msgArrays.push(arr);
   }
-  
-  // Add user data if available (starting from index 2!)
-  if (verificationData) {
-    try {
-      // Message array 2 (index 2): First name
-      if (verificationData.firstName) {
-        const nameBytes = stringToUint8Array(verificationData.firstName, 31);
-        msgArrays[2] = nameBytes; // Now using index 2, not 0
-        debugArray("firstName payload", msgArrays[2]);
-      }
-      
-      // Message array 3 (index 3): Document type
-      if (verificationData.documentType) {
-        const docBytes = stringToUint8Array(verificationData.documentType, 31);
-        msgArrays[3] = docBytes; // Now using index 3, not 1
-        debugArray("documentType payload", msgArrays[3]);
-      }
-      
-      // Message array 4 (index 4): EU citizen flag
-      if (verificationData.isEUCitizen !== undefined) {
-        msgArrays[4][0] = verificationData.isEUCitizen ? 1 : 0;
-        debugArray("isEUCitizen payload", msgArrays[4]);
-      }
-      
-      // Message array 5 (index 5): Over 18 flag
-      if (verificationData.isOver18 !== undefined) {
-        msgArrays[5][0] = verificationData.isOver18 ? 1 : 0;
-        debugArray("isOver18 payload", msgArrays[5]);
-      }
-      
-      // Message array 6 (index 6): Extra data (all zeros by default)
-    } catch (error) {
-      console.error("Error adding user data to message arrays:", error);
-    }
-  }
-  
+
   // For debugging, add a distinctive byte to the end of each array
   for (let i = 0; i < msgArrays.length; i++) {
     msgArrays[i][30] = i + 1;  // Last byte of each array = array index + 1
@@ -192,15 +157,6 @@ function createMessageArrays(donationAddress, arbChainId, verificationData) {
 async function main() {
   // Get user verification data from environment variable
   const verificationData = getVerificationData();
-  
-  console.log("Verification data received:", {
-    firstName: verificationData?.firstName,
-    isOver18: verificationData?.isOver18,
-    isEUCitizen: verificationData?.isEUCitizen,
-    documentType: verificationData?.documentType,
-    uniqueIdentifier: verificationData?.uniqueIdentifier,
-    hasFormattedProofs: !!verificationData?.formattedProofs
-  });
   
   // Log the formatted proofs if they exist
   if (verificationData?.formattedProofs) {
@@ -240,8 +196,8 @@ async function main() {
   console.log(`Using emitter at ${emitterAddress.toString()}`);
 
   // EXISTING WORMHOLE AND TOKEN CONTRACT ADDRESSES
-  const wormhole_address = AztecAddress.fromString("0x11b7dae0d5a563543c1f458c5e33f36e2d6c9e6b44a90890093ae08912c7f780");
-  const token_address = "0x01c3a72c10df12b3d148b4e4893d61a1f8afa646ca27f9d5d4bcd28aa7496207";
+  const wormhole_address = AztecAddress.fromString("0x1c1e70df4bfc56ec1e2fbf9c99c121e0cd5c9cf84eefd182c5aed949edf332e5");
+  const token_address = "0x050637e531071fa9593f20ccb926218a9b5e6d62e4eb52ec2b347b3de464271e";
 
   console.log("Getting token contract...");
   const token = await TokenContract.at(token_address, ownerWallet);
@@ -285,7 +241,7 @@ async function main() {
   const donationAction = token.methods.transfer_in_private(
     ownerWallet.getAddress(),
     receiverWallet.getAddress(),
-    28n,
+    35n,
     token_nonce 
   );
   console.log("Generating private authwit for donation...");
@@ -299,7 +255,7 @@ async function main() {
   const contract = await Contract.at(emitterAddress, EmitterContractArtifact, ownerWallet);
   
   // The vault address we want to appear in the logs
-  const targetVaultAddress = "0x1886Fa412064137BDe9Ea996EA2bB85377de8aB6";
+  const targetVaultAddress = "0x25AF99b922857C37282f578F428CB7f34335B379";
   console.log(`Target vault address: ${targetVaultAddress}`);
   
   // Create arbitrum address and vault address - these are passed directly to the contract
@@ -336,7 +292,7 @@ async function main() {
       msgArrays,            // Message arrays (5 arrays of 31 bytes each)
       wormhole_address,     // Wormhole contract address
       token_address,        // Token contract address
-      28n,                   // Amount
+      35n,                   // Amount
       token_nonce           // Token nonce
     ).send({ authWitnesses: [donationWitness] }).wait();
 

@@ -269,7 +269,7 @@ export default function Home() {
             setTxStatus("Verification data sent successfully to Aztec contract!")
             setTxHash(data.txHash)
             // Start polling automatically once we have a txHash
-            startPollingArbitrumMessage()
+            startPollingArbitrumMessage(data.txHash)
           } else {
             setTxStatus(`Error: ${data.error}`)
           }
@@ -304,74 +304,70 @@ export default function Home() {
   }
 
   // Function to start polling for Arbitrum message using txHash
-  const startPollingArbitrumMessage = () => {
+  const startPollingArbitrumMessage = (currentTxHash?: string) => {
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current)
-  }
+    }
 
-  setIsPolling(true)
-  setTxStatus((prevStatus) => `${prevStatus} - Polling for transaction data...`)
+    // Use the passed txHash or fall back to state
+    const hashToUse = currentTxHash || txHash
 
-  // Use transaction hash for polling
-  if (!txHash) {
-    setTxStatus((prevStatus) => `${prevStatus} - Error: No transaction hash available for polling`)
-    setIsPolling(false)
-    return
-  }
+    setIsPolling(true)
+    setTxStatus((prevStatus) => `${prevStatus} - Polling for transaction data...`)
 
-  console.log(`Polling for transaction data with hash: ${txHash}`)
+    console.log(`Polling for transaction data with hash: ${hashToUse}`)
 
-  pollingIntervalRef.current = setInterval(
-    async () => {
-      try {
-        const response = await fetch("/api/get-arbitrum-message", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ txHash: txHash }),
-        })
+    pollingIntervalRef.current = setInterval(
+      async () => {
+        try {
+          const response = await fetch("/api/get-arbitrum-message", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ txHash: hashToUse }),
+          })
 
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || `HTTP error ${response.status}`)
-        }
-
-        const data = await response.json()
-        console.log("Polling response:", data)
-
-        // Check if we got a non-zero amount
-        if (data.success && data.message && data.message !== "0x" && 
-            data.message !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
-          setArbitrumMessage(data.message)
-          
-          // Store raw data chunks if available
-          if (data.parsedData && data.parsedData.rawData) {
-            setRawDataChunks(data.parsedData.rawData)
+          if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.error || `HTTP error ${response.status}`)
           }
-          
-          setTxStatus("Transaction data received!")
-          setIsPolling(false)
+
+          const data = await response.json()
+          console.log("Polling response:", data)
+
+          // Check if we got a non-zero amount
+          if (data.success && data.message && data.message !== "0x" && 
+              data.message !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
+            setArbitrumMessage(data.message)
+            
+            // Store raw data chunks if available
+            if (data.parsedData && data.parsedData.rawData) {
+              setRawDataChunks(data.parsedData.rawData)
+            }
+            
+            setTxStatus("Transaction data received!")
+            setIsPolling(false)
+
+            if (pollingIntervalRef.current) {
+              clearInterval(pollingIntervalRef.current)
+              pollingIntervalRef.current = null
+            }
+          }
+        } catch (error) {
+          console.error("Error polling transaction data:", error)
+          setTxStatus(`Error polling: ${error instanceof Error ? error.message : "Unknown error"}`)
 
           if (pollingIntervalRef.current) {
             clearInterval(pollingIntervalRef.current)
             pollingIntervalRef.current = null
           }
+          setIsPolling(false)
         }
-      } catch (error) {
-        console.error("Error polling transaction data:", error)
-        setTxStatus(`Error polling: ${error instanceof Error ? error.message : "Unknown error"}`)
-
-        if (pollingIntervalRef.current) {
-          clearInterval(pollingIntervalRef.current)
-          pollingIntervalRef.current = null
-        }
-        setIsPolling(false)
-      }
-    },
-    Number.parseInt(process.env.NEXT_PUBLIC_POLLING_INTERVAL || "5000"),
-  )
-}
+      },
+      Number.parseInt(process.env.NEXT_PUBLIC_POLLING_INTERVAL || "5000"),
+    )
+  }
 
   const stopPolling = () => {
     if (pollingIntervalRef.current) {
@@ -594,7 +590,7 @@ export default function Home() {
                         ? "bg-red-500 hover:bg-red-600 text-white"
                         : "bg-green-500 hover:bg-green-600 text-white"
                     }`}
-                    onClick={isPolling ? stopPolling : startPollingArbitrumMessage}
+                    onClick={isPolling ? stopPolling : () => startPollingArbitrumMessage(txHash)}
                   >
                     {isPolling ? "⏹️ Stop Polling" : "▶️ Start Polling"}
                   </button>
@@ -602,97 +598,26 @@ export default function Home() {
               </div>
             )}
 
-          {/* Cross-Chain Message */}
+          {/* Cross-Chain Message - CLEANED VERSION */}
           {arbitrumMessage && (
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl shadow-lg p-6 border border-green-200">
               <h3 className="text-lg font-semibold text-green-900 mb-3">🌉 Cross-Chain Verification Complete</h3>
 
               <div className="bg-white p-4 rounded-lg shadow-sm border border-green-100">
-                {/* Parsed amount value */}
+                {/* Transaction Amount - Only uint8 */}
                 <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-sm font-medium text-blue-800 mb-1">Transaction Amount:</p>
                   {rawDataChunks.length > 0 && (
-                    <div className="space-y-3">
-                      {/* Display the amount in different formats */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white p-2 rounded-lg border border-blue-100">
-                          <span className="text-xs text-blue-600 font-medium block mb-1">as uint8 (1 byte):</span>
-                          <span className="text-lg font-bold text-blue-900">
-                            {parseInt(rawDataChunks[0].substring(0, 2), 16)}
-                          </span>
-                        </div>
-                        <div className="bg-white p-2 rounded-lg border border-blue-100">
-                          <span className="text-xs text-blue-600 font-medium block mb-1">as uint16 (2 bytes):</span>
-                          <span className="text-lg font-bold text-blue-900">
-                            {parseInt(rawDataChunks[0].substring(0, 4), 16)}
-                          </span>
-                        </div>
-                        <div className="bg-white p-2 rounded-lg border border-blue-100">
-                          <span className="text-xs text-blue-600 font-medium block mb-1">as uint32 (4 bytes):</span>
-                          <span className="text-lg font-bold text-blue-900">
-                            {parseInt(rawDataChunks[0].substring(0, 8), 16)}
-                          </span>
-                        </div>
-                        <div className="bg-white p-2 rounded-lg border border-blue-100">
-                          <span className="text-xs text-blue-600 font-medium block mb-1">as uint64 (8 bytes):</span>
-                          <span className="text-lg font-bold text-blue-900">
-                            {(() => {
-                              try {
-                                return BigInt("0x" + rawDataChunks[0].substring(0, 16)).toString();
-                              } catch (e) {
-                                return "Error parsing";
-                              }
-                            })()}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      {/* Full uint256 value */}
-                      <div className="bg-white p-2 rounded-lg border border-blue-100 mt-3">
-                        <span className="text-xs text-blue-600 font-medium block mb-1">as uint256 (full value):</span>
-                        <span className="text-sm font-mono text-blue-900 break-all">
-                          {(() => {
-                            try {
-                              return BigInt("0x" + rawDataChunks[0]).toString();
-                            } catch (e) {
-                              return "Error parsing full value";
-                            }
-                          })()}
-                        </span>
-                      </div>
-                      
-                      {/* Note about the contract changes */}
-                      <div className="text-xs text-gray-600 mt-2 bg-gray-50 p-2 rounded">
-                        <span className="font-medium">Note:</span> The contract now stores a transaction amount as a uint256 value.
-                        The values above show different interpretations of the amount data.
-                      </div>
+                    <div className="bg-white p-2 rounded-lg border border-blue-100">
+                      <span className="text-xs text-blue-600 font-medium block mb-1">as uint8 (1 byte):</span>
+                      <span className="text-lg font-bold text-blue-900">
+                        {parseInt(rawDataChunks[0].substring(0, 2), 16)}
+                      </span>
                     </div>
                   )}
                 </div>
                 
-                {/* Raw message display */}
-                <div className="mb-4">
-                  <p className="text-sm font-medium text-gray-700 mb-1">Raw data (hex):</p>
-                  <p className="text-xs text-gray-600 font-mono break-all bg-gray-50 p-2 rounded">
-                    {arbitrumMessage}
-                  </p>
-                </div>
-
-                {/* Raw Data Chunks */}
-                {rawDataChunks.length > 0 && (
-                  <div className="mt-4">
-                    <div className="font-medium text-gray-700 mb-2">Raw Data (32-byte chunks):</div>
-                    <div className="space-y-2">
-                      {rawDataChunks.map((chunk, index) => (
-                        <div key={index} className="bg-gray-50 p-2 rounded font-mono text-xs overflow-x-auto">
-                          <span className="text-gray-500 mr-2">Chunk {index}:</span>
-                          <span className="text-gray-900">{chunk}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
+                {/* Success Message */}
                 <div className="mt-3 pt-3 border-t border-green-100">
                   <p className="text-sm text-green-600">
                     ✅ Transaction data successfully received across blockchains using Wormhole protocol

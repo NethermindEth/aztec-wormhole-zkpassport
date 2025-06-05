@@ -57,8 +57,8 @@ async function main() {
   console.log(`Receiver address: ${receiverWallet.getAddress()}`);
 
   // EXISTING WORMHOLE AND TOKEN CONTRACT ADDRESSES
-  const wormhole_address = AztecAddress.fromString("0x11b7dae0d5a563543c1f458c5e33f36e2d6c9e6b44a90890093ae08912c7f780");
-  const token_address = "0x01c3a72c10df12b3d148b4e4893d61a1f8afa646ca27f9d5d4bcd28aa7496207";
+  const wormhole_address = AztecAddress.fromString("0x1c1e70df4bfc56ec1e2fbf9c99c121e0cd5c9cf84eefd182c5aed949edf332e5");
+  const token_address = "0x050637e531071fa9593f20ccb926218a9b5e6d62e4eb52ec2b347b3de464271e";
 
   const emitter = await Contract.deploy(ownerWallet, EmitterContractArtifact, [AztecAddress.fromString(token_address)])
       .send()
