@@ -145,13 +145,13 @@ pub contract ZKPassportCredentialEmitter {
         let wormhole_payload = [msg[0], msg[1], payload3, msg[2], msg[3], msg[4], msg[5], msg[6]];
                 
         // 4. call publish message
-        let _ = Wormhole::at(wormhole_address).publish_message(
+        let _ = Wormhole::at(wormhole_address).publish_message_in_private(
             1, 
             wormhole_payload,
             2,
             2,
             context.msg_sender(),
             nonce,
-        ).enqueue(&mut context);
+        ).call(&mut context);
     }
 }
