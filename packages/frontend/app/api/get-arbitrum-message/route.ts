@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     );
     
     // Use the actual contract address
-    const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x42D4BA5e542d9FeD87EA657f0295F1968A61c00A";
+    const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0xb592244aa6477eBDDc14475aaeF921cdDcC0170f";
     
     try {
       // First verify if the contract exists at this address

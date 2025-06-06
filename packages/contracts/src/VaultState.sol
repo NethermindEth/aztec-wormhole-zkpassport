@@ -34,7 +34,7 @@ contract VaultStorage {
         // EIP-155 Chain ID
         uint256 evmChainId;
         
-        // Store Arbitrum public key -> message mapping
+        // Store Aztec TxID -> amount mapping
         mapping(bytes32 => uint256) arbitrumMessages;
 
         address donationContract;
