@@ -3,7 +3,7 @@
 	url = https://github.com/foundry-rs/forge-std
 [submodule "packages/contracts/lib/wormhole"]
 	path = packages/contracts/lib/wormhole
-	url = https://github.com/wormhole-foundation/wormhole
+	url = https://github.com/Wormhole/wormhole
 [submodule "packages/contracts/lib/openzeppelin-contracts"]
 	path = packages/contracts/lib/openzeppelin-contracts
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts
