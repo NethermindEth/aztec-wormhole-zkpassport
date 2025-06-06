@@ -200,8 +200,8 @@ async function main() {
   console.log(`Using emitter at ${emitterAddress.toString()}`);
 
   // EXISTING WORMHOLE AND TOKEN CONTRACT ADDRESSES
-  const wormhole_address = AztecAddress.fromString("0x1c1e70df4bfc56ec1e2fbf9c99c121e0cd5c9cf84eefd182c5aed949edf332e5");
-  const token_address = "0x050637e531071fa9593f20ccb926218a9b5e6d62e4eb52ec2b347b3de464271e";
+  const wormhole_address = AztecAddress.fromString("0x0d6fe810321185c97a0e94200f998bcae787aaddf953a03b14ec5da3b6838bad");
+  const token_address = "0x15edee5716556b6d29a9893c9d6872117709a7bf23fb82a72ef6bf7de1de9da0";
 
   console.log("Getting token contract...");
   const token = await TokenContract.at(token_address, ownerWallet);
@@ -221,25 +221,22 @@ async function main() {
   writeFileSync(noncePath, JSON.stringify(new_nonce_data, null, 2));  
   console.log(`Using token nonce: ${token_nonce}`);
   
-  // First, set up the public auth witness for the Wormhole contract
-  const tokenTransferAction = token.methods.transfer_in_public(
+  // First, set up the private auth witness for the Wormhole contract
+  const tokenTransferAction = token.methods.transfer_in_private(
     ownerAddress, 
     receiverWallet.getAddress(),
     2n,
     token_nonce  
   ); 
 
-  console.log("Generating public authwit for token transfer...");
-  const validateActionInteraction = await ownerWallet.setPublicAuthWit(
+  console.log("Generating private authwit for token transfer...");
+  const wormholeWitness = await ownerWallet.createAuthWit(
     {
       caller: wormhole_address,
       action: tokenTransferAction
     },
     true
   );
-  
-  await validateActionInteraction.send().wait();
-  console.log("Public auth witness set up successfully");
 
   // Now create the donation action and private auth witness with dynamic amount
   const donationAction = token.methods.transfer_in_private(
@@ -259,7 +256,7 @@ async function main() {
   const contract = await Contract.at(emitterAddress, EmitterContractArtifact, ownerWallet);
   
   // The vault address we want to appear in the logs
-  const targetVaultAddress = "0xB247a2fcBe1223C24374a27966952491CA56c800";
+  const targetVaultAddress = "0x42D4BA5e542d9FeD87EA657f0295F1968A61c00A";
   console.log(`Target vault address: ${targetVaultAddress}`);
   
   // Create arbitrum address and vault address - these are passed directly to the contract
@@ -299,7 +296,7 @@ async function main() {
       token_address,        // Token contract address
       BigInt(userAmount),   // Amount
       token_nonce           // Token nonce
-    ).send({ authWitnesses: [donationWitness] }).wait();
+    ).send({ authWitnesses: [wormholeWitness, donationWitness] }).wait();
 
     console.log("Transaction sent! Hash:", tx.txHash);
     console.log("Block number:", tx.blockNumber);
