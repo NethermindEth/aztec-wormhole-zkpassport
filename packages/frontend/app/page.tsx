@@ -10,6 +10,7 @@ export default function Home() {
   const [queryUrl, setQueryUrl] = useState("")
   const [formattedProofs, setFormattedProofs] = useState<any>(null) // Store formatted proofs
   const [donationAmount, setDonationAmount] = useState<number | "">("")  // No default amount - user must enter
+  const [submittedAmount, setSubmittedAmount] = useState<number | null>(null) // Track the actually submitted amount
   
   // UI state variables
   const [requestInProgress, setRequestInProgress] = useState(false)
@@ -25,6 +26,7 @@ export default function Home() {
   const zkPassportRef = useRef<ZKPassport | null>(null)
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const collectedProofsRef = useRef<ProofResult[]>([]) // Store collected proofs
+  const lockedDonationAmountRef = useRef<number | null>(null) // Lock the donation amount
 
   // Initialize ZKPassport on component mount
   useEffect(() => {
@@ -53,6 +55,11 @@ export default function Home() {
       setError("Please enter a valid donation amount between 1 and 254")
       return
     }
+    
+    // LOCK the donation amount immediately when verification starts
+    const lockedAmount = Number(donationAmount)
+    lockedDonationAmountRef.current = lockedAmount
+    setSubmittedAmount(lockedAmount)
     
     // Reset all state
     setMessage("")
@@ -220,20 +227,24 @@ export default function Home() {
           },
         } : null;
 
+        // Use the LOCKED donation amount that was captured at the start
+        // This ensures the amount cannot be changed by user after verification starts
+        const finalDonationAmount = lockedDonationAmountRef.current!
+        
         const verificationData = {
           firstName: firstName,
           isOver18: isOver18,
           isEUCitizen: isEUCitizen,
           documentType: documentType,
           uniqueIdentifier: uniqueIdentifier || "",
-          amount: Number(donationAmount), // Ensure it's a number
+          amount: finalDonationAmount, // Use the locked amount
           formattedProofs: serializableProofData // Include serializable formatted proofs
         }
         
         console.log("Sending verification data to API:", verificationData)
         
         // Send data to API
-        setTxStatus(`Processing your verified donation of ${donationAmount} tokens...`)
+        setTxStatus(`Processing your verified donation of ${finalDonationAmount} tokens...`)
         setTxHash("")
         
         try {
@@ -252,16 +263,18 @@ export default function Home() {
           const data = await response.json()
           
           if (data.success) {
-            setTxStatus(`Your verified donation of ${donationAmount} tokens has been submitted!`)
+            setTxStatus(`Your verified donation of ${finalDonationAmount} tokens has been submitted!`)
             setTxHash(data.txHash)
             // Start polling automatically once we have a txHash
             startPollingDonation(data.txHash)
           } else {
             setTxStatus(`Error: ${data.error}`)
+            // Don't reset submittedAmount on API error - keep it for debugging
           }
         } catch (error) {
           console.error("Error sending verification data to API:", error)
           setTxStatus(`Error: ${error instanceof Error ? error.message : "Unknown error"}`)
+          // Don't reset submittedAmount on API error - keep it for debugging
         }
       })
 
@@ -270,6 +283,8 @@ export default function Home() {
         setMessage("User rejected the request")
         setRequestInProgress(false)
         setIsLoading(false)
+        setSubmittedAmount(null) // Reset submitted amount on rejection
+        lockedDonationAmountRef.current = null // Reset locked amount
       })
 
       onError((error: unknown) => {
@@ -277,6 +292,8 @@ export default function Home() {
         setMessage("An error occurred")
         setRequestInProgress(false)
         setIsLoading(false)
+        setSubmittedAmount(null) // Reset submitted amount on error
+        lockedDonationAmountRef.current = null // Reset locked amount
         setError("Failed to complete ZKPassport verification")
       })
 
@@ -286,6 +303,8 @@ export default function Home() {
       setError("Failed to initialize ZKPassport verification")
       setIsLoading(false)
       setRequestInProgress(false)
+      setSubmittedAmount(null) // Reset submitted amount on error
+      lockedDonationAmountRef.current = null // Reset locked amount
     }
   }
 
@@ -358,6 +377,30 @@ export default function Home() {
     setTxStatus((prevStatus) => `${prevStatus} - Polling stopped.`)
   }
 
+  // Reset function to clear all state for a new donation
+  const resetForNewDonation = () => {
+    setMessage("")
+    setQueryUrl("")
+    setFormattedProofs(null)
+    setDonationAmount("")
+    setSubmittedAmount(null)
+    setTxHash("")
+    setTxStatus("")
+    setReceivedDonation(null)
+    setIsPolling(false)
+    setIsLoading(false)
+    setError("")
+    setShowQRCode(true)
+    setRequestInProgress(false)
+    collectedProofsRef.current = []
+    lockedDonationAmountRef.current = null // Reset locked amount
+    
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+      pollingIntervalRef.current = null
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-100 p-6">
       <div className="max-w-4xl mx-auto">
@@ -389,14 +432,35 @@ export default function Home() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Enter donation amount (1-254)"
                   required
+                  disabled={requestInProgress || isLoading} // Disable during processing
                 />
                 <p className="text-xs text-gray-500">
                   Your donation will be securely processed after identity verification (1-254 tokens)
                 </p>
-                {!donationAmount && (
+                {submittedAmount === null && !donationAmount && (
                   <p className="text-xs text-red-500">
                     Donation amount is required (1-254 tokens)
                   </p>
+                )}
+                {submittedAmount !== null && !receivedDonation && (
+                  <div className="p-2 bg-blue-50 border border-blue-200 rounded">
+                    <p className="text-xs text-blue-800 font-medium">
+                      🔒 Processing donation: {submittedAmount} tokens
+                    </p>
+                    <p className="text-xs text-blue-600">
+                      Amount is locked during verification and transaction
+                    </p>
+                  </div>
+                )}
+                {submittedAmount !== null && receivedDonation !== null && (
+                  <div className="p-2 bg-green-50 border border-green-200 rounded">
+                    <p className="text-xs text-green-800 font-medium">
+                      ✅ Donation completed: {submittedAmount} tokens
+                    </p>
+                    <p className="text-xs text-green-600">
+                      Cross-chain transfer confirmed successfully
+                    </p>
+                  </div>
                 )}
               </div>
             </div>
@@ -446,7 +510,7 @@ export default function Home() {
               )}
 
               {/* Action Button */}
-              <div className="mt-4">
+              <div className="mt-4 space-y-2">
                 <button
                   className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={createRequest}
@@ -454,6 +518,16 @@ export default function Home() {
                 >
                   {requestInProgress || isLoading ? "🔄 Processing..." : "💝 Verify Identity & Donate"}
                 </button>
+                
+                {/* Reset button for new donation */}
+                {(receivedDonation !== null || error) && (
+                  <button
+                    className="w-full bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200"
+                    onClick={resetForNewDonation}
+                  >
+                    🔄 New Donation
+                  </button>
+                )}
               </div>
             </div>
 
@@ -514,7 +588,7 @@ export default function Home() {
             )}
 
             {/* Cross-Chain Donation Confirmation */}
-            {receivedDonation !== null && (
+            {receivedDonation !== null && submittedAmount !== null && (
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl shadow-lg p-6 border border-green-200">
                 <h3 className="text-lg font-semibold text-green-900 mb-3">🎉 Donation Confirmed!</h3>
 
@@ -525,17 +599,17 @@ export default function Home() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-white p-2 rounded border border-blue-100">
                         <span className="text-xs text-blue-600 font-medium block">You Donated:</span>
-                        <span className="text-lg font-bold text-blue-900">{donationAmount}</span>
+                        <span className="text-lg font-bold text-blue-900">{submittedAmount}</span>
                       </div>
                       <div className="bg-white p-2 rounded border border-blue-100">
                         <span className="text-xs text-blue-600 font-medium block">Confirmed:</span>
                         <span className="text-lg font-bold text-blue-900">{receivedDonation}</span>
                       </div>
                     </div>
-                    {Number(donationAmount) === Number(receivedDonation) ? (
+                    {submittedAmount === receivedDonation ? (
                       <p className="text-xs text-green-600 mt-2 text-center">✅ Donation amount verified!</p>
                     ) : (
-                      <p className="text-xs text-red-600 mt-2 text-center">⚠️ Amounts don't match (Expected: {donationAmount}, Got: {receivedDonation})</p>
+                      <p className="text-xs text-red-600 mt-2 text-center">⚠️ Amounts don't match (Expected: {submittedAmount}, Got: {receivedDonation})</p>
                     )}
                   </div>
                   
