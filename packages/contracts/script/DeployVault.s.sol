@@ -10,7 +10,8 @@ import "forge-std/console.sol";
 contract DeployVault is Script {
     function run() public returns (address vaultAddress, address donationContractAddress) {
         // Parameters for initialization - adjust as needed
-        address payable wormholeAddress = payable(0xC89Ce4735882C9F0f0FE26686c53074E09B0D550); // Replace with your wormhole address
+        address payable wormholeAddress = payable(0xC89Ce4735882C9F0f0FE26686c53074E09B0D550); // Devnet wormhole address
+        // address payable wormholeAddress = payable(0x6b9C8671cdDC8dEab9c719bB87cBd3e782bA6a35); // Testnet wormhole address
         uint16 chainId = 2; // Maintain the same chain ID as current contract for consistency
         uint256 evmChainId = block.chainid; // Use actual chain ID to avoid fork issues
         uint8 finality = 2; 
