@@ -200,8 +200,8 @@ async function main() {
   console.log(`Using emitter at ${emitterAddress.toString()}`);
 
   // EXISTING WORMHOLE AND TOKEN CONTRACT ADDRESSES
-  const wormhole_address = AztecAddress.fromString("0x0bbb35b434b791e4e7f77060fbad641c77d4c11b111129a191b9a0c383d76b6d");
-  const token_address = "0x2ea31fa9f3114a45f6fb4ad71bcf4aa4041dcf00db3e0c48739fa0115744974c";
+  const wormhole_address = AztecAddress.fromString("0x1320a7c89797e4506b683fcc547acb7f02a809bd1b3a967a3dfe18b7d3f38669");
+  const token_address = "0x0dc025163fe73041b970e9a26905fb41358ad14ef8de84e38746679f210d300e";
 
   console.log("Getting token contract...");
   const token = await TokenContract.at(token_address, ownerWallet);
