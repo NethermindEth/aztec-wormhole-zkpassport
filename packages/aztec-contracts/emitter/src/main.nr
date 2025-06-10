@@ -119,7 +119,7 @@ pub contract ZKPassportCredentialEmitter {
         );
 
         let bridge_address = AztecAddress {
-            inner: 0x1f41267c06dae96c9c3906c5f77cbc28602cc70d6d7e9d2c3072cb0a5b13edd2 // This is a placeholder, replace with actual bridge address
+            inner: 0x25c6603099990f1085903124acaf00217a6e29e50baf163036c566a83c9bb6e3 // This is a placeholder, replace with actual bridge address
         };
 
         // 2. Perform zk Donation
