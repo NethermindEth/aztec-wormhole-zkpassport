@@ -256,7 +256,7 @@ async function main() {
   const contract = await Contract.at(emitterAddress, EmitterContractArtifact, ownerWallet);
   
   // The vault address we want to appear in the logs
-  const targetVaultAddress = "0xb592244aa6477eBDDc14475aaeF921cdDcC0170f";
+  const targetVaultAddress = "0x009cbB8f91d392856Cb880d67c806Aa731E3d686";
   console.log(`Target vault address: ${targetVaultAddress}`);
   
   // Create arbitrum address and vault address - these are passed directly to the contract
