@@ -6,3 +6,6 @@ remappings = [
     "wormhole/=lib/wormhole/",
     "@openzeppelin/=lib/openzeppelin-contracts/"
 ]
+
+[rpc_endpoints]
+arbitrum_sepolia = "https://sepolia-rollup.arbitrum.io/rpc"

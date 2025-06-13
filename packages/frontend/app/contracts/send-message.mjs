@@ -200,8 +200,8 @@ async function main() {
   console.log(`Using emitter at ${emitterAddress.toString()}`);
 
   // EXISTING WORMHOLE AND TOKEN CONTRACT ADDRESSES
-  const wormhole_address = AztecAddress.fromString("0x0d6fe810321185c97a0e94200f998bcae787aaddf953a03b14ec5da3b6838bad");
-  const token_address = "0x15edee5716556b6d29a9893c9d6872117709a7bf23fb82a72ef6bf7de1de9da0";
+  const wormhole_address = AztecAddress.fromString("0x1320a7c89797e4506b683fcc547acb7f02a809bd1b3a967a3dfe18b7d3f38669");
+  const token_address = "0x0dc025163fe73041b970e9a26905fb41358ad14ef8de84e38746679f210d300e";
 
   console.log("Getting token contract...");
   const token = await TokenContract.at(token_address, ownerWallet);
@@ -256,7 +256,7 @@ async function main() {
   const contract = await Contract.at(emitterAddress, EmitterContractArtifact, ownerWallet);
   
   // The vault address we want to appear in the logs
-  const targetVaultAddress = "0xb592244aa6477eBDDc14475aaeF921cdDcC0170f";
+  const targetVaultAddress = "0x009cbB8f91d392856Cb880d67c806Aa731E3d686";
   console.log(`Target vault address: ${targetVaultAddress}`);
   
   // Create arbitrum address and vault address - these are passed directly to the contract
